@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>What does your photo reveal? · reveal</title>
+    <meta name="description" content="See the hidden data inside your photo: location, time, device serials, names, hidden video. Remove what you don't want to share and download a clean copy. Runs entirely in your browser; nothing is uploaded." />
+    <meta name="theme-color" content="#050705" />
+    <meta property="og:title" content="What does your photo reveal?" />
+    <meta property="og:description" content="Location, device serials, names, hidden video. See it and remove it, on your device. Nothing is uploaded." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://reveal.shinigami-rog.cc/" />
+    <meta property="og:image" content="https://reveal.shinigami-rog.cc/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="canonical" href="https://reveal.shinigami-rog.cc/" />
+  </head>
+  <body>
+    <div class="scanlines" aria-hidden="true"></div>
+    <header class="top">
+      <a class="brand" href="/">reveal<span class="cursor">_</span></a>
+      <nav>
+        <a href="#how">how</a>
+        <a href="#proof">proof</a>
+        <a href="#dev">developers</a>
+        <a href="https://github.com/sivaguru94/safe-upload" rel="noopener">github</a>
+        <button id="theme" class="ghost" type="button" aria-label="Switch colour theme">◐</button>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero" id="start">
+        <p class="prompt"><span class="accent">$</span> reveal your-photo.jpg</p>
+        <h1>What does your photo reveal?</h1>
+        <p class="lede">
+          Photos carry hidden data: where they were taken, when, which phone, who is in them, sometimes an uncropped preview or a hidden video.
+          Drop one in to see it, choose what to remove, and download a clean copy.
+        </p>
+        <ul class="trust" aria-label="Privacy guarantees">
+          <li><span class="tick">✓</span> Runs on your device</li>
+          <li><span class="tick">✓</span> Nothing is uploaded</li>
+          <li><span class="tick">✓</span> <a href="https://github.com/sivaguru94/safe-upload" rel="noopener">Open source</a> · <a href="https://www.npmjs.com/package/safe-upload" rel="noopener">npm</a></li>
+        </ul>
+        <label class="drop" id="drop">
+          <input type="file" id="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/avif,.heic,.heif,.avif" />
+          <span class="drop-title">Drop a photo here</span>
+          <span class="drop-sub">or tap to choose · JPEG, PNG, WebP, HEIC, AVIF</span>
+        </label>
+        <p class="sample-line"><button id="sample" class="link" type="button">No photo handy? Try a sample</button></p>
+        <p class="error" id="error" role="alert" hidden></p>
+      </section>
+
+      <section class="result" id="result" hidden aria-live="polite">
+        <div class="result-grid">
+          <div class="preview-col">
+            <div class="preview" id="preview">
+              <img id="preview-img" alt="Your photo" />
+              <svg id="overlay" class="overlay" aria-hidden="true"></svg>
+              <p class="no-preview" id="no-preview" hidden>This browser cannot show this format (HEIC needs Safari). Reading and removing metadata still works.</p>
+            </div>
+            <div class="face-tools" id="face-tools">
+              <div class="row">
+                <button id="scan" class="secondary" type="button">Scan for faces</button>
+                <button id="draw" class="secondary" type="button" aria-pressed="false">Draw a box</button>
+                <label class="style-pick">Hide with
+                  <select id="style">
+                    <option value="pixelate">pixelate</option>
+                    <option value="blur">blur</option>
+                    <option value="solid">solid box</option>
+                  </select>
+                </label>
+              </div>
+              <p class="hint" id="face-hint">Optional. The face detector (about 5 MB) downloads once from this site and runs on your device. Click a box to keep that face visible.</p>
+            </div>
+            <p class="file-meta" id="file-meta"></p>
+          </div>
+
+          <div class="report-col">
+            <div class="verdict" id="verdict"></div>
+            <div class="bulk">
+              <button class="link" id="select-all" type="button">select all</button> ·
+              <button class="link" id="select-none" type="button">keep all</button>
+            </div>
+            <div id="cards"></div>
+            <div class="actions">
+              <button id="download" class="primary" type="button">Download clean photo</button>
+              <button id="reset" class="secondary" type="button">Check another</button>
+              <p class="action-note" id="action-note"></p>
+            </div>
+            <div class="verify" id="verify" hidden></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="info" id="how">
+        <h2><span class="accent">#</span> how it works</h2>
+        <ol class="steps">
+          <li><strong>Read.</strong> The page reads the metadata blocks inside the file: EXIF, XMP, IPTC, PNG text, HEIC items, and anything stored after the picture.</li>
+          <li><strong>Choose.</strong> Each finding is grouped by what it gives away. Tick what you want gone. Faces are optional and found on your device.</li>
+          <li><strong>Clean.</strong> Metadata is cut out without re-compressing the picture, so quality is untouched. Only hiding faces re-encodes the image.</li>
+        </ol>
+      </section>
+
+      <section class="info" id="proof">
+        <h2><span class="accent">#</span> proof that nothing leaves your device</h2>
+        <ul class="proofs">
+          <li><strong>Your browser enforces it.</strong> This page is served with a Content-Security-Policy that only allows connections back to this site, which has nowhere to receive uploads. Check the response headers in your browser's developer tools:
+            <pre class="csp" id="csp"></pre></li>
+          <li><strong>Watch the network.</strong> Open the Network tab, then add a photo. Nothing is sent. The only requests are this site's own files: the place-name list and, if you ask for it, the face detector.</li>
+          <li><strong>Go offline.</strong> Once the page has loaded, switch to airplane mode. Reading and cleaning photos still works.</li>
+          <li><strong>Read the code.</strong> Everything is open source under the MIT licence: <a href="https://github.com/sivaguru94/safe-upload" rel="noopener">github.com/sivaguru94/safe-upload</a>. The same engine is published on npm as <a href="https://www.npmjs.com/package/safe-upload" rel="noopener">safe-upload</a>.</li>
+        </ul>
+      </section>
+
+      <section class="info" id="dev">
+        <h2><span class="accent">#</span> for developers</h2>
+        <p>Clean photos in your own upload form before they leave the user's device. Zero-dependency core, works in browsers, workers, Node, Deno and Bun.</p>
+        <pre class="code"><code>npm install safe-upload
+
+import { inspect, strip } from 'safe-upload';
+
+const report = await inspect(file);   // what the photo reveals
+const clean  = await strip(file);     // lossless: GPS, serials, names… removed
+await fetch('/upload', { method: 'POST', body: new Blob([clean.bytes], { type: clean.mime }) });</code></pre>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <p>Built by <a href="https://shinigami-rog.cc/sivaguru-ravi" rel="noopener">Sivaguru Ravi</a> · <a href="https://github.com/sivaguru94/safe-upload" rel="noopener">source (MIT)</a></p>
+      <p class="credits">Place names © <a href="https://www.geonames.org" rel="noopener">GeoNames</a> (CC BY 4.0) · Map: Natural Earth · Face detection: MediaPipe (Apache-2.0) · Sample photo: NASA/Josh Valcarcel (public domain), example metadata added.</p>
+    </footer>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

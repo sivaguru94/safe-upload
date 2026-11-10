@@ -1,0 +1,75 @@
+{
+  "name": "safe-upload",
+  "version": "0.1.0",
+  "description": "See and remove what a photo reveals before it leaves the device: GPS, device serials, names, edit history, hidden motion-photo video, AI prompts. Lossless, zero-dependency core; optional on-device face redaction.",
+  "keywords": [
+    "exif",
+    "gps",
+    "metadata",
+    "privacy",
+    "strip",
+    "remove",
+    "sanitize",
+    "heic",
+    "jpeg",
+    "png",
+    "webp",
+    "xmp",
+    "iptc",
+    "motion-photo",
+    "face-blur",
+    "upload",
+    "browser"
+  ],
+  "license": "MIT",
+  "author": "Sivaguru Ravi (https://shinigami-rog.cc)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sivaguru94/safe-upload.git",
+    "directory": "packages/safe-upload"
+  },
+  "homepage": "https://reveal.shinigami-rog.cc",
+  "bugs": "https://github.com/sivaguru94/safe-upload/issues",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./browser": {
+      "types": "./dist/browser/index.d.ts",
+      "default": "./dist/browser/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "peerDependencies": {
+    "@mediapipe/tasks-vision": ">=0.10.0"
+  },
+  "peerDependenciesMeta": {
+    "@mediapipe/tasks-vision": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "typescript": "7.0.2",
+    "vitest": "5.1.0"
+  }
+}

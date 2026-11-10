@@ -1,0 +1,18 @@
+{
+  "name": "site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prepare-assets": "node ../scripts/site-assets.mjs",
+    "dev": "npm run prepare-assets && vite",
+    "build": "npm run prepare-assets && vite build",
+    "preview": "vite preview --port 4173 --strictPort --host"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "1.2.2",
+    "safe-upload": "*"
+  },
+  "devDependencies": {
+    "vite": "8.3.6"
+  }
+}

@@ -1,0 +1,11 @@
+node_modules/
+dist/
+site/dist/
+test-results/
+playwright-report/
+fixtures/out/
+*.log
+.DS_Store
+site/public/mediapipe/
+test-results/
+playwright-report/

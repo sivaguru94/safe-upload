@@ -1,0 +1,21 @@
+{
+  "name": "safe-upload-monorepo",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/safe-upload",
+    "site"
+  ],
+  "scripts": {
+    "build": "npm run build -w safe-upload && npm run build -w site",
+    "test": "npm test -w safe-upload",
+    "fixtures": "bash scripts/make-fixtures.sh",
+    "e2e": "bash scripts/e2e.sh"
+  },
+  "engines": {
+    "node": ">=20.19"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0"
+  }
+}
