@@ -9,6 +9,7 @@
     "preview": "vite preview --port 4173 --strictPort --host"
   },
   "dependencies": {
+    "@jsquash/jpeg": "1.6.0",
     "@mediapipe/tasks-vision": "1.2.2",
     "safe-upload": "*"
   },

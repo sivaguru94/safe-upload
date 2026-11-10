@@ -316,7 +316,12 @@ interface Clean {
   lossless: boolean;
   hidden: number;
   retained: string[];
+  tiled?: boolean;
+  downscaled?: { width: number; height: number };
 }
+
+/** Test hook: ?max-canvas=N forces the strip path on small photos. Defaults to the iOS limit. */
+const MAX_CANVAS = Number(new URLSearchParams(location.search).get('max-canvas')) || undefined;
 
 async function makeClean(): Promise<Clean> {
   const file = state.file!;
@@ -325,7 +330,8 @@ async function makeClean(): Promise<Clean> {
   if (regions.length) {
     const { redact } = await import('safe-upload/browser');
     const style = ($('style') as HTMLSelectElement).value as 'pixelate' | 'blur' | 'solid';
-    return { blob: (await redact(file, regions, { remove, style })).blob, lossless: false, hidden: regions.length, retained: [] };
+    const r = await redact(file, regions, { remove, style, maxCanvasPixels: MAX_CANVAS });
+    return { blob: r.blob, lossless: false, hidden: regions.length, retained: [], tiled: r.tiled, downscaled: r.downscaled ? { width: r.width, height: r.height } : undefined };
   }
   const r = await strip(file, { remove });
   return { blob: new Blob([r.bytes as BlobPart], { type: r.mime }), lossless: true, hidden: 0, retained: r.retained.map((f) => f.label) };
@@ -367,10 +373,13 @@ async function copyClean(): Promise<string> {
   try {
     const c = await makeClean();
     const bmp = await createImageBitmap(c.blob);
+    // Search engines need no more than this, and it keeps phones under their canvas limits.
+    const scale = Math.min(1, 2048 / Math.max(bmp.width, bmp.height));
     const canvas = h('canvas');
-    canvas.width = bmp.width;
-    canvas.height = bmp.height;
-    canvas.getContext('2d')!.drawImage(bmp, 0, 0);
+    canvas.width = Math.round(bmp.width * scale);
+    canvas.height = Math.round(bmp.height * scale);
+    canvas.getContext('2d')!.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+    bmp.close();
     const png = await new Promise<Blob>((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error('encode failed'))), 'image/png'));
     await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
     return ' Copied. Paste it (Ctrl/Cmd+V) into the search page.';
@@ -389,7 +398,8 @@ async function showVerification(before: Report, c: Clean, name: string) {
     gone.length ? h('ul', {}, ...gone.map((x) => h('li', {}, `${CATEGORY_INFO[x].label}: removed`))) : null,
     kept.length ? h('p', {}, `Still in the file because you kept them: ${kept.map((x) => CATEGORY_INFO[x].label).join(', ')}.`) : h('p', {}, 'No revealing metadata is left in the file.'),
     c.retained.length ? h('p', { class: 'retained' }, `Could not remove in this format: ${c.retained.join(', ')}.`) : null,
-    h('p', { class: 'desc' }, c.lossless ? 'The picture itself is byte-for-byte unchanged: only metadata was cut out.' : `${c.hidden} area${c.hidden === 1 ? '' : 's'} hidden; the picture was re-encoded at high quality.`),
+    h('p', { class: 'desc' }, c.lossless ? 'The picture itself is byte-for-byte unchanged: only metadata was cut out.' : `${c.hidden} area${c.hidden === 1 ? '' : 's'} hidden; the picture was re-encoded at high quality${c.tiled ? ', in strips to stay within this device’s limits, at full resolution' : ''}.`),
+    c.downscaled ? h('p', { class: 'retained' }, `This browser could not handle the full-size picture, so the clean copy is ${c.downscaled.width}×${c.downscaled.height}.`) : null,
     h('p', { class: 'desc' }, 'Metadata is only half of it: what the picture shows can still be searched. See "What a web search could find" above.'),
   ];
   const v = $('verify');

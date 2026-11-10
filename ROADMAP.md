@@ -3,8 +3,11 @@
 Ordered. One item in progress at a time.
 
 ## 1. Launch blockers
-1. **iPhone canvas limit.** iOS Safari caps a canvas at about 16.7 million pixels; 24 MP iPhone photos
-   exceed it, so `redact()` fails there. Process in tiles (or downscale with a notice). Test on a real iPhone.
+1. ~~**iPhone canvas limit.**~~ DONE 2026-11-10 in code: photos over 16,777,216 px are redacted in strips and
+   encoded with @jsquash/jpeg (mozjpeg WASM) at full resolution; PNG/WebP over the limit are downscaled with a
+   notice; e2e compares the strip path with the normal path pixel by pixel. STILL TO DO: try a 24 MP photo on a
+   real iPhone. Same day: the iPhone "Take Photo" viewfinder was black because Permissions-Policy had camera=();
+   now camera=(self).
 2. **Real-file corpus.** Run real files from the owner's devices through inspect/strip and the site:
    Pixel 7a motion photo (`.MP.jpg`), iPhone HEIC (thumbnail, depth, gain map), iPhone JPEG with gain map,
    WhatsApp-forwarded image, Android and macOS screenshots, Lightroom export. Turn each surprise into a
