@@ -1,11 +1,7 @@
 import { ctx2d, makeCanvas } from './canvas.js';
+import { containment, iou, loadVision, sizeOf, tiles, visionSupported, VisionUnavailableError, type Box } from './mediapipe.js';
 
-export interface Box {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
+export type { Box };
 
 export interface FaceBox extends Box {
   score: number;
@@ -20,34 +16,19 @@ export interface FaceDetectionOptions {
   minScore?: number;
 }
 
-type Detector = { detect(image: unknown): { detections: { boundingBox?: { originX: number; originY: number; width: number; height: number }; categories: { score: number }[] }[] }; close(): void };
+type Detector = { detect(image: unknown): { detections: { boundingBox?: { originX: number; originY: number; width: number; height: number }; categories: { score: number }[] }[] } };
 
 let cached: { key: string; detector: Promise<Detector> } | undefined;
 
-/** MediaPipe needs WebGL even on its CPU path. False when the browser has WebGL turned off. */
-export function faceDetectionSupported(): boolean {
-  try {
-    const c = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(1, 1) : document.createElement('canvas');
-    return !!(c.getContext('webgl2') ?? c.getContext('webgl'));
-  } catch {
-    return false;
-  }
-}
-
-export class FaceDetectionUnavailableError extends Error {
-  constructor() {
-    super('Face detection needs WebGL, which is turned off in this browser.');
-    this.name = 'FaceDetectionUnavailableError';
-  }
-}
+/** @deprecated use visionSupported */
+export const faceDetectionSupported = visionSupported;
+export { VisionUnavailableError as FaceDetectionUnavailableError };
 
 async function getDetector(o: FaceDetectionOptions): Promise<Detector> {
   const key = `${o.wasmBaseUrl}|${o.modelAssetUrl}|${o.minScore ?? 0.4}`;
   if (cached?.key === key) return cached.detector;
-  if (!faceDetectionSupported()) throw new FaceDetectionUnavailableError();
   const detector = (async () => {
-    const vision = await import('@mediapipe/tasks-vision');
-    const fileset = await vision.FilesetResolver.forVisionTasks(o.wasmBaseUrl);
+    const { vision, fileset } = await loadVision(o.wasmBaseUrl);
     return (await vision.FaceDetector.createFromOptions(fileset, {
       baseOptions: { modelAssetPath: o.modelAssetUrl, delegate: 'CPU' },
       runningMode: 'IMAGE',
@@ -65,80 +46,36 @@ export async function preloadFaceDetector(o: FaceDetectionOptions): Promise<void
   await getDetector(o);
 }
 
-function iou(a: Box, b: Box): number {
-  const x1 = Math.max(a.x, b.x);
-  const y1 = Math.max(a.y, b.y);
-  const x2 = Math.min(a.x + a.width, b.x + b.width);
-  const y2 = Math.min(a.y + a.height, b.y + b.height);
-  const inter = Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
-  const union = a.width * a.height + b.width * b.height - inter;
-  return union > 0 ? inter / union : 0;
-}
-
-/** Overlap relative to the smaller box, to merge a face found whole and again in a tile. */
-function containment(a: Box, b: Box): number {
-  const x1 = Math.max(a.x, b.x);
-  const y1 = Math.max(a.y, b.y);
-  const x2 = Math.min(a.x + a.width, b.x + b.width);
-  const y2 = Math.min(a.y + a.height, b.y + b.height);
-  const inter = Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
-  return inter / Math.min(a.width * a.height, b.width * b.height);
-}
-
 /**
- * Find faces on-device. Runs the detector on the whole picture and on overlapping tiles so that
- * small faces in large group photos are found too. Coordinates are in the source's pixel space.
+ * Find faces on-device. Runs on the whole picture and on overlapping tiles so small faces in
+ * large group photos are found too. Coordinates are in the source's pixel space.
  */
 export async function detectFaces(source: ImageBitmap | HTMLImageElement | HTMLCanvasElement, options: FaceDetectionOptions): Promise<FaceBox[]> {
   const det = await getDetector(options);
-  const W = 'naturalWidth' in source ? source.naturalWidth : source.width;
-  const H = 'naturalHeight' in source ? source.naturalHeight : source.height;
-  const MAX = 1024;
+  const { W, H } = sizeOf(source);
   const found: FaceBox[] = [];
-
-  const run = (sx: number, sy: number, sw: number, sh: number) => {
-    const scale = Math.min(1, MAX / Math.max(sw, sh));
-    const cw = Math.max(1, Math.round(sw * scale));
-    const ch = Math.max(1, Math.round(sh * scale));
-    const canvas = makeCanvas(cw, ch);
-    const ctx = ctx2d(canvas);
-    ctx.drawImage(source as CanvasImageSource, sx, sy, sw, sh, 0, 0, cw, ch);
-    // Raw pixels go straight into WASM memory, so detection works without WebGL.
-    const res = det.detect(ctx.getImageData(0, 0, cw, ch));
-    for (const d of res.detections) {
+  for (const t of tiles(W, H)) {
+    const scale = Math.min(1, 1024 / Math.max(t.width, t.height));
+    const cw = Math.max(1, Math.round(t.width * scale));
+    const ch = Math.max(1, Math.round(t.height * scale));
+    const ctx = ctx2d(makeCanvas(cw, ch));
+    ctx.drawImage(source as CanvasImageSource, t.x, t.y, t.width, t.height, 0, 0, cw, ch);
+    // Raw pixels go straight into WASM memory.
+    for (const d of det.detect(ctx.getImageData(0, 0, cw, ch)).detections) {
       const bb = d.boundingBox;
-      if (!bb) continue;
-      found.push({
-        x: sx + bb.originX / scale,
-        y: sy + bb.originY / scale,
-        width: bb.width / scale,
-        height: bb.height / scale,
-        score: d.categories[0]?.score ?? 0,
-      });
+      if (bb) found.push({ x: t.x + bb.originX / scale, y: t.y + bb.originY / scale, width: bb.width / scale, height: bb.height / scale, score: d.categories[0]?.score ?? 0 });
     }
-  };
-
-  run(0, 0, W, H);
-  const longest = Math.max(W, H);
-  const grids = longest > 2400 ? [2, 3] : longest > 1000 ? [2] : [];
-  for (const n of grids) {
-    const tw = W / n;
-    const th = H / n;
-    const ox = tw * 0.25;
-    const oy = th * 0.25;
-    for (let gy = 0; gy < n; gy++)
-      for (let gx = 0; gx < n; gx++) {
-        const sx = Math.max(0, gx * tw - ox);
-        const sy = Math.max(0, gy * th - oy);
-        run(sx, sy, Math.min(W - sx, tw + 2 * ox), Math.min(H - sy, th + 2 * oy));
-      }
   }
-
-  // Merge duplicates, keeping the higher score.
   found.sort((a, b) => b.score - a.score);
   const kept: FaceBox[] = [];
   for (const f of found) if (!kept.some((k) => iou(k, f) > 0.3 || containment(k, f) > 0.6)) kept.push(f);
-  return kept.map((f) => ({ ...f, x: Math.max(0, f.x), y: Math.max(0, f.y), width: Math.min(f.width, W - Math.max(0, f.x)), height: Math.min(f.height, H - Math.max(0, f.y)) }));
+  return kept.map((f) => clampBox(f, W, H));
+}
+
+export function clampBox<T extends Box>(b: T, W: number, H: number): T {
+  const x = Math.max(0, b.x);
+  const y = Math.max(0, b.y);
+  return { ...b, x, y, width: Math.min(b.width - (x - b.x), W - x), height: Math.min(b.height - (y - b.y), H - y) };
 }
 
 /** Grow a box by a fraction on each side (faces need margin for hair and ears). */

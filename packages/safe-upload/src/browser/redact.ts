@@ -1,7 +1,7 @@
 import { carryExif, toBytes } from '../api.js';
 import type { Input, StripOptions } from '../types.js';
 import { ctx2d, decode, encode, makeCanvas, type AnyCanvas, type Ctx } from './canvas.js';
-import type { Box } from './faces.js';
+import type { Box } from './mediapipe.js';
 
 export type RedactStyle = 'pixelate' | 'blur' | 'solid';
 

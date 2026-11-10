@@ -220,3 +220,14 @@ pre.code { white-space: pre; }
   .cursor, .map .ring { animation: none; }
   .drop { transition: none; }
 }
+
+/* added: verdict good news, objects, web search */
+.verdict li.ok .k { color: var(--accent); }
+.verdict li.ok .v { font-weight: 400; color: var(--dim); }
+.overlay .box.object { stroke: var(--medium); fill: rgba(255, 179, 71, 0.14); }
+.overlay .box.object.off { stroke: var(--medium); fill: transparent; stroke-dasharray: 4 4; opacity: 0.8; }
+.hint-row { margin: 8px 0 0; }
+.hint-row .desc { margin: 2px 0 0; }
+ul.plain { margin: 0 0 10px; padding-left: 18px; font-size: 0.9rem; display: grid; gap: 4px; }
+.card .row { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0; }
+.secondary.small { padding: 7px 11px; font-size: 0.82rem; text-decoration: none; display: inline-block; }

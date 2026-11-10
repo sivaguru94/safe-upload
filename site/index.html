@@ -60,7 +60,7 @@
             </div>
             <div class="face-tools" id="face-tools">
               <div class="row">
-                <button id="scan" class="secondary" type="button">Scan for faces</button>
+                <button id="scan" class="secondary" type="button">Scan the picture</button>
                 <button id="draw" class="secondary" type="button" aria-pressed="false">Draw a box</button>
                 <label class="style-pick">Hide with
                   <select id="style">
@@ -70,7 +70,7 @@
                   </select>
                 </label>
               </div>
-              <p class="hint" id="face-hint">Optional. The face detector (about 5 MB) downloads once from this site and runs on your device. Click a box to keep that face visible.</p>
+              <p class="hint" id="face-hint">Optional. Finds faces and revealing objects on your device.</p>
             </div>
             <p class="file-meta" id="file-meta"></p>
           </div>
@@ -106,7 +106,7 @@
         <ul class="proofs">
           <li><strong>Your browser enforces it.</strong> This page is served with a Content-Security-Policy that only allows connections back to this site, which has nowhere to receive uploads. Check the response headers in your browser's developer tools:
             <pre class="csp" id="csp"></pre></li>
-          <li><strong>Watch the network.</strong> Open the Network tab, then add a photo. Nothing is sent. The only requests are this site's own files: the place-name list and, if you ask for it, the face detector.</li>
+          <li><strong>Watch the network.</strong> Open the Network tab, then add a photo. Nothing is sent. The only requests are this site's own files: the place-name list and, if you ask for a scan, the face and object detectors.</li>
           <li><strong>Go offline.</strong> Once the page has loaded, switch to airplane mode. Reading and cleaning photos still works.</li>
           <li><strong>Read the code.</strong> Everything is open source under the MIT licence: <a href="https://github.com/sivaguru94/safe-upload" rel="noopener">github.com/sivaguru94/safe-upload</a>. The same engine is published on npm as <a href="https://www.npmjs.com/package/safe-upload" rel="noopener">safe-upload</a>.</li>
         </ul>

@@ -1,4 +1,5 @@
-import { CATEGORY_INFO, type Category, type Finding, type Report } from 'safe-upload';
+import { CATEGORY_INFO, inspectFileName, type Category, type Finding, type Report } from 'safe-upload';
+import type { ObjectHint } from 'safe-upload/browser';
 import { WORLD_PATH } from './data/worldmap.js';
 import { bytes, h, s } from './dom.js';
 import { compass, nearestPlace } from './geo.js';
@@ -27,6 +28,8 @@ const coord = (n: number) => n.toFixed(5);
 export interface VerdictLine {
   k: string;
   v: string;
+  /** Good news rather than a leak. */
+  ok?: boolean;
 }
 
 export async function verdictLines(r: Report): Promise<VerdictLine[]> {
@@ -37,6 +40,7 @@ export async function verdictLines(r: Report): Promise<VerdictLine[]> {
     const where = place ? `near ${place.name}, ${place.country}` : `${coord(g.latitude)}, ${coord(g.longitude)}`;
     out.push({ k: 'where', v: `${where} (${coord(g.latitude)}, ${coord(g.longitude)})` });
   } else if (r.categories.includes('location')) out.push({ k: 'where', v: 'place names written into the file' });
+  else out.push({ k: 'where', v: 'no GPS position in the file. The picture itself can still give the place away; see "What a web search could find" below.', ok: true });
   const when = fmtDate(r.summary.capturedAt, r.summary.timeZone);
   if (when) out.push({ k: 'when', v: when });
   const dev = [r.summary.device, ...r.summary.serialNumbers.map((x) => `serial ${x}`)].filter(Boolean).join(' · ');
@@ -49,6 +53,93 @@ export async function verdictLines(r: Report): Promise<VerdictLine[]> {
   if (r.summary.aiPrompt) out.push({ k: 'ai', v: 'the AI prompt used to make it' });
   if (r.summary.software.length) out.push({ k: 'apps', v: r.summary.software.slice(0, 2).join(', ') });
   return out;
+}
+
+export function fileNameLine(name: string): VerdictLine | null {
+  const f = inspectFileName(name);
+  if (!f.revealing) return null;
+  return { k: 'file name', v: f.findings.map((x) => x.value).join(' · ') };
+}
+
+/** Card for what the file object itself reveals: its name and dates. */
+export function renderFileCard(file: File, neutral: boolean, onNeutral: (on: boolean) => void): HTMLElement {
+  const f = inspectFileName(file.name);
+  const box = h('input', { type: 'checkbox', 'aria-label': 'Download with a neutral file name', id: 'neutral-name' });
+  box.checked = neutral;
+  box.addEventListener('change', () => onNeutral(box.checked));
+  const rows: Finding[] = [
+    { category: 'other', source: 'exif', key: 'file.name', label: 'File name', value: file.name, removable: true },
+    ...f.findings.map((x) => ({ category: x.category, source: 'exif' as const, key: `file.${x.label}`, label: x.label, value: x.value, removable: true })),
+    { category: 'other', source: 'exif', key: 'file.size', label: 'Size', value: bytes(file.size), removable: true },
+  ];
+  if (file.lastModified) rows.push({ category: 'time', source: 'exif', key: 'file.mtime', label: 'Last changed on this device', value: `${new Date(file.lastModified).toLocaleString()} (not sent with uploads)`, removable: true });
+  return h(
+    'article',
+    { class: `card risk-${f.revealing ? 'medium' : 'low'}`, 'data-cat': 'file' },
+    h('header', {}, h('h3', {}, 'File name & properties'), h('span', { class: `badge ${f.revealing ? 'medium' : 'low'}` }, f.revealing ? 'medium' : 'low'), h('label', { class: 'toggle' }, box, 'neutral name')),
+    h('p', { class: 'desc' }, 'Browsers send the file name with every upload, and camera apps and messengers write the date, device and app into it. With "neutral name" ticked, the clean copy is saved as photo-clean.'),
+    items(rows),
+  );
+}
+
+/** Card for things the on-device object detector found in the picture. */
+export function renderObjectsCard(hints: ObjectHint[], onHide: (kind: string, on: boolean) => void): HTMLElement {
+  const body: (Node | null)[] = [];
+  if (!hints.length) body.push(h('p', { class: 'desc' }, 'The detector found nothing obviously revealing, but it only knows about 80 everyday things. Check backgrounds, signs, reflections and screens yourself.'));
+  for (const hint of hints) {
+    const btn = hint.redactable ? h('button', { class: 'link', type: 'button' }, 'hide them') : null;
+    if (btn) {
+      let on = false;
+      btn.addEventListener('click', () => {
+        on = !on;
+        btn.textContent = on ? 'show them' : 'hide them';
+        onHide(hint.kind, on);
+      });
+    }
+    body.push(h('div', { class: 'hint-row' }, h('strong', {}, hint.title), btn ? ' · ' : null, btn, h('p', { class: 'desc' }, hint.hint)));
+  }
+  const risky = hints.some((x) => x.redactable);
+  return h(
+    'article',
+    { class: `card risk-${risky ? 'high' : 'medium'}`, 'data-cat': 'objects' },
+    h('header', {}, h('h3', {}, 'Visible in the picture'), h('span', { class: `badge ${risky ? 'high' : 'medium'}` }, risky ? 'high' : 'medium')),
+    h('p', { class: 'desc' }, 'Found on your device. Removing metadata does not hide what the picture shows.'),
+    ...body.filter((n): n is Node => n !== null),
+  );
+}
+
+const SEARCHES: [string, string][] = [
+  ['Google Lens', 'https://lens.google.com/'],
+  ['Bing Visual Search', 'https://www.bing.com/visualsearch'],
+  ['TinEye', 'https://tineye.com/'],
+  ['Yandex Images', 'https://yandex.com/images/'],
+];
+
+/** Card explaining reverse image search, with opt-in links. Nothing is sent from this page. */
+export function renderWebCard(onCopy: () => Promise<string>): HTMLElement {
+  const status = h('span', { class: 'desc', role: 'status' });
+  const copy = h('button', { class: 'secondary small', type: 'button' }, 'Copy clean photo');
+  copy.addEventListener('click', async () => {
+    copy.setAttribute('disabled', '');
+    status.textContent = await onCopy();
+    copy.removeAttribute('disabled');
+  });
+  return h(
+    'article',
+    { class: 'card risk-high', 'data-cat': 'web' },
+    h('header', {}, h('h3', {}, 'What a web search could find'), h('span', { class: 'badge high' }, 'high')),
+    h('p', { class: 'desc' }, 'A reverse image search compares the picture itself with billions of images online, so it works even after every bit of metadata is gone. It can show:'),
+    h(
+      'ul',
+      { class: 'plain' },
+      h('li', {}, h('strong', {}, 'Where else it is posted'), ': the same photo, or others from that day, often with names and captions.'),
+      h('li', {}, h('strong', {}, 'Who is in it'), ': face-search sites match a face to other photos of the same person across the web.'),
+      h('li', {}, h('strong', {}, 'Where it was taken'), ': landmarks, shop signs, skylines and views are enough for search engines to name the place.'),
+    ),
+    h('p', { class: 'desc' }, 'Check it yourself with the clean copy. The links open each search engine in a new tab; you paste or upload the photo there, so it goes to that company under its own privacy policy. This page never searches for you.'),
+    h('div', { class: 'row' }, copy, ...SEARCHES.map(([n, u]) => h('a', { class: 'secondary small', href: u, target: '_blank', rel: 'noopener noreferrer' }, `${n} ↗`))),
+    status,
+  );
 }
 
 function items(findings: Finding[]): HTMLElement {

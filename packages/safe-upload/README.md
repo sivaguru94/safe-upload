@@ -78,6 +78,19 @@ r.notes;     // e.g. "The XMP metadata block was removed as a whole."
 
 Orientation, colour profiles and everything needed to display the picture are always kept.
 
+## Check the file name
+
+Browsers send the file name with every upload, and camera apps and messengers write the date, device and app into it (`PXL_20241016_103122123.MP.jpg` says: Pixel, 16 Oct 2024 10:31 UTC, motion photo).
+
+```js
+import { inspectFileName, neutralFileName } from 'safe-upload';
+
+inspectFileName('Screenshot_20241016-103122_WhatsApp.jpg').findings;
+// [{ label: 'Screenshot', value: 'Android screenshot' }, { label: 'Taken (from file name)', value: '2024-10-16 10:31:22' }, { label: 'App on screen', value: 'WhatsApp' }]
+
+form.append('photo', cleanBlob, neutralFileName(clean.mime)); // "photo.jpg"
+```
+
 ## Hide faces on-device (browser)
 
 ```bash
@@ -91,6 +104,17 @@ const opts = { wasmBaseUrl: '/mediapipe/', modelAssetUrl: '/models/blaze_face_fu
 const faces = await detectFaces(imageElement, opts);
 const regions = faces.map((f) => pad(f, 0.22, imageElement.naturalWidth, imageElement.naturalHeight));
 const { blob } = await redact(file, regions, { style: 'pixelate', remove: ['location', 'device'] });
+```
+
+### Find revealing objects
+
+Metadata is only half of it. `detectObjects` (EfficientDet-Lite0, 80 everyday classes, on-device) and `objectHints` point out screens, papers, vehicles, home interiors, street signs and similar things that can identify people or places:
+
+```js
+import { detectObjects, objectHints } from 'safe-upload/browser';
+
+const objects = await detectObjects(imageElement, { wasmBaseUrl: '/mediapipe/', modelAssetUrl: '/models/efficientdet_lite0.tflite' });
+for (const h of objectHints(objects)) console.log(h.title, '-', h.hint); // "1 screen - Screens can show messages, emails, maps…"
 ```
 
 `redact` re-encodes the picture (it has to, the pixels change) and copies over only the EXIF categories you keep, with orientation reset to upright. Detection can miss faces, so always show the result and let people add boxes themselves. Copy `vision_wasm_internal.js` and `.wasm` from `@mediapipe/tasks-vision/wasm`, and the model from MediaPipe's model page, to your own server.

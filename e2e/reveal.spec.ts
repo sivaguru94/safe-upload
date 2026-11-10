@@ -44,7 +44,7 @@ test('reveals what a JPEG gives away, and the download is the lossless strip @mo
   await expect(page.locator('.card[data-cat=location] svg')).toBeVisible();
   await expect(page.locator('.card[data-cat=thumbnail] img')).toBeVisible();
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#download')]);
-  expect(dl.suggestedFilename()).toBe('full-clean.jpg');
+  expect(dl.suggestedFilename()).toBe('photo-clean.jpg');
   const got = new Uint8Array(readFileSync((await dl.path())!));
   const expected = (await strip(readFileSync(join(FIX, 'full.jpg')))).bytes;
   expect(Buffer.from(got).equals(Buffer.from(expected))).toBe(true);
@@ -89,7 +89,7 @@ test('handles HEIC metadata even where the browser cannot display it', async ({ 
   await upload(page, 'full.heic');
   await expect(page.locator('#verdict')).toContainText('Bengaluru');
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#download')]);
-  expect(dl.suggestedFilename()).toBe('full-clean.heic');
+  expect(dl.suggestedFilename()).toBe('photo-clean.heic');
   const after = await inspect(new Uint8Array(readFileSync((await dl.path())!)));
   expect(after.categories).not.toContain('location');
   expect(w.foreign()).toEqual([]);
@@ -105,7 +105,9 @@ test('sample photo: finds faces on-device, hides them, keeps no metadata @mobile
   await page.click('#scan');
   if (webgl) {
     await expect(page.locator('#face-hint')).toContainText(/Found \d+ face/, { timeout: 60_000 });
-    expect(await page.locator('#overlay rect.box').count()).toBeGreaterThanOrEqual(4);
+    expect(await page.locator('#overlay rect.box.face').count()).toBeGreaterThanOrEqual(4);
+    // The object detector reports the people it sees.
+    await expect(page.locator('.card[data-cat=objects]')).toContainText(/\d+ (people|person)/);
   } else {
     // No WebGL (e.g. headless Firefox): explain it and fall back to drawing a box by hand.
     await expect(page.locator('#face-hint')).toContainText('needs WebGL');
@@ -140,7 +142,7 @@ test('keeps working offline once loaded', async ({ page, context }) => {
   await upload(page, 'full.jpg');
   await expect(page.locator('#verdict')).toContainText('Bengaluru');
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#download')]);
-  expect(dl.suggestedFilename()).toBe('full-clean.jpg');
+  expect(dl.suggestedFilename()).toBe('photo-clean.jpg');
   await context.setOffline(false);
 });
 
@@ -150,4 +152,32 @@ test('serves the security headers it advertises', async ({ request }) => {
   expect(csp).toContain("connect-src 'self'");
   expect(csp).toContain("default-src 'none'");
   expect(res.headers()['referrer-policy']).toBe('no-referrer');
+});
+
+test('file name and properties: reveals what the name gives away and downloads a neutral name', async ({ page }) => {
+  await page.goto('/');
+  await page.setInputFiles('#file', { name: 'PXL_20241016_103122123.MP.jpg', mimeType: 'image/jpeg', buffer: readFileSync(join(FIX, 'full.jpg')) });
+  await expect(page.locator('#verdict')).toContainText('Google Pixel camera');
+  await expect(page.locator('.card[data-cat=file]')).toContainText('Motion photo marker');
+  let [dl] = await Promise.all([page.waitForEvent('download'), page.click('#download')]);
+  expect(dl.suggestedFilename()).toBe('photo-clean.jpg');
+  await page.locator('#neutral-name').uncheck();
+  [dl] = await Promise.all([page.waitForEvent('download'), page.click('#download')]);
+  expect(dl.suggestedFilename()).toBe('PXL_20241016_103122123.MP-clean.jpg');
+});
+
+test('says plainly when there is no GPS, and explains reverse image search without contacting anyone', async ({ page }) => {
+  const w = watch(page);
+  await page.goto('/');
+  await upload(page, 'ai.png');
+  await expect(page.locator('#verdict li.ok')).toContainText('no GPS position in the file');
+  const web = page.locator('.card[data-cat=web]');
+  await expect(web).toContainText('What a web search could find');
+  const links = web.locator('a');
+  expect(await links.count()).toBe(4);
+  for (const a of await links.all()) {
+    await expect(a).toHaveAttribute('target', '_blank');
+    await expect(a).toHaveAttribute('rel', /noopener/);
+  }
+  expect(w.foreign()).toEqual([]);
 });
