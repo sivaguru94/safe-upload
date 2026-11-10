@@ -8,6 +8,27 @@ const urls: string[] = [];
 export function revokeUrls(): void {
   while (urls.length) URL.revokeObjectURL(urls.pop()!);
 }
+/**
+ * Embedded previews are stored in the sensor's orientation, like the main picture's pixels, but
+ * without the rotation flag. Give a JPEG preview the main photo's orientation so it shows upright.
+ */
+function upright(b: Uint8Array, orientation?: number): Uint8Array {
+  if (!orientation || orientation === 1 || orientation > 8 || b[0] !== 0xff || b[1] !== 0xd8) return b;
+  let p = 2;
+  while (p + 6 < b.length && b[p] === 0xff && b[p + 1] >= 0xe0 && b[p + 1] <= 0xef) {
+    if (b[p + 1] === 0xe1 && b[p + 4] === 0x45 && b[p + 5] === 0x78) return b; // already has EXIF
+    p += 2 + ((b[p + 2] << 8) | b[p + 3]);
+  }
+  const tiff = [0x4d, 0x4d, 0, 0x2a, 0, 0, 0, 8, 0, 1, 0x01, 0x12, 0, 3, 0, 0, 0, 1, 0, orientation, 0, 0, 0, 0, 0, 0];
+  const payload = [0x45, 0x78, 0x69, 0x66, 0, 0, ...tiff];
+  const seg = [0xff, 0xe1, (payload.length + 2) >> 8, (payload.length + 2) & 0xff, ...payload];
+  const out = new Uint8Array(b.length + seg.length);
+  out.set(b.subarray(0, 2), 0);
+  out.set(seg, 2);
+  out.set(b.subarray(2), 2 + seg.length);
+  return out;
+}
+
 function blobUrl(b: Uint8Array, type: string): string {
   const u = URL.createObjectURL(new Blob([b as BlobPart], { type }));
   urls.push(u);
@@ -49,7 +70,7 @@ export async function verdictLines(r: Report): Promise<VerdictLine[]> {
   if (r.summary.people.length) out.push({ k: 'who', v: `${list(r.summary.people, 5)} (tagged in the photo)` });
   if (r.summary.names.length) out.push({ k: 'owner', v: list(r.summary.names, 3) });
   if (r.thumbnails.length) out.push({ k: 'preview', v: 'a hidden preview of the picture, possibly before cropping' });
-  for (const m of r.hidden) out.push({ k: m.kind === 'video' ? 'video' : 'extra', v: `${m.label.toLowerCase()} (${bytes(m.bytes.length)})` });
+  for (const m of r.hidden) out.push({ k: m.kind === 'video' ? 'video' : 'extra', v: `${m.label.charAt(0).toLowerCase()}${m.label.slice(1)} (${bytes(m.bytes.length)})` });
   if (r.summary.aiPrompt) out.push({ k: 'ai', v: 'the AI prompt used to make it' });
   if (r.summary.software.length) out.push({ k: 'apps', v: r.summary.software.slice(0, 2).join(', ') });
   return out;
@@ -187,7 +208,7 @@ async function locationExtra(r: Report): Promise<HTMLElement | null> {
 
 function mediaExtra(r: Report, cat: Category): HTMLElement | null {
   if (cat === 'thumbnail' && r.thumbnails.length) {
-    return h('div', { class: 'media-grid' }, ...r.thumbnails.map((t) => h('figure', {}, h('img', { src: blobUrl(t, 'image/jpeg'), alt: 'Preview image stored inside the file' }), h('figcaption', {}, `Stored inside the file (${bytes(t.length)}). Compare it with your photo.`))));
+    return h('div', { class: 'media-grid' }, ...r.thumbnails.map((t) => h('figure', {}, h('img', { src: blobUrl(upright(t, r.orientation), 'image/jpeg'), alt: 'Preview image stored inside the file' }), h('figcaption', {}, `Stored inside the file (${bytes(t.length)}). Compare it with your photo.`))));
   }
   if (cat === 'hidden' && r.hidden.length) {
     return h(
@@ -195,7 +216,7 @@ function mediaExtra(r: Report, cat: Category): HTMLElement | null {
       { class: 'media-grid' },
       ...r.hidden.map((m) => {
         if (m.kind === 'video') return h('figure', {}, h('video', { src: blobUrl(m.bytes, m.mime), controls: true, muted: true, playsinline: true, loop: true }), h('figcaption', {}, `${m.label} · ${bytes(m.bytes.length)}`));
-        if (m.kind === 'image') return h('figure', {}, h('img', { src: blobUrl(m.bytes, m.mime), alt: m.label }), h('figcaption', {}, `${m.label} · ${bytes(m.bytes.length)}`));
+        if (m.kind === 'image') return h('figure', {}, h('img', { src: blobUrl(m.mime === 'image/jpeg' ? upright(m.bytes, r.orientation) : m.bytes, m.mime), alt: m.label }), h('figcaption', {}, `${m.label} · ${bytes(m.bytes.length)}`));
         return h('figure', {}, h('figcaption', {}, `${m.label} · ${bytes(m.bytes.length)}`));
       }),
     );

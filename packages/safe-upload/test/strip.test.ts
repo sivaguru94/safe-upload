@@ -68,6 +68,22 @@ oracle('strip (checked with exiftool and ImageMagick)', () => {
     expect((await inspect(r.bytes)).hidden).toHaveLength(0);
   });
 
+  it('drops an empty GPS block with location without claiming a location was removed', async () => {
+    const r = await strip(fixture('nogps.jpg'));
+    const out = save('nogps-clean.jpg', r.bytes);
+    expect(tagNames(out)).not.toContain('GPSVersionID');
+    expect(r.removed).not.toContain('location');
+    expect(pixelSignature(out)).toBe(pixelSignature(join(FIXTURES, 'nogps.jpg')));
+  });
+
+  it('removes MPF preview copies and their index', async () => {
+    const r = await strip(fixture('mpf.jpg'), { remove: ['hidden'] });
+    const out = save('mpf-clean.jpg', r.bytes);
+    expect(tagNames(out).filter((t) => t.startsWith('MP'))).toEqual([]);
+    expect((await inspect(r.bytes)).hidden).toHaveLength(0);
+    expect(pixelSignature(out)).toBe(pixelSignature(join(FIXTURES, 'mpf.jpg')));
+  });
+
   it('is idempotent', async () => {
     for (const name of ['full.jpg', 'full.png', 'full.webp', 'full.heic']) {
       const once = (await strip(fixture(name))).bytes;

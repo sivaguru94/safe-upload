@@ -210,6 +210,22 @@ export function formatEntry(ifd: IfdName, e: IfdEntry, le: boolean): string {
 
 // ---------------------------------------------------------------- analysis
 
+/**
+ * GPS tags that say nothing on their own. Cameras without a GPS receiver (most DSLRs) still write
+ * a GPS block holding only these, so they must not be reported as a location.
+ */
+const GPS_HOUSEKEEPING = new Set([0x0000, 0x0008, 0x0009, 0x000a, 0x000b, 0x0012, 0x001b, 0x001e]);
+
+/** True when the GPS block carries an actual position, direction, destination or area. */
+export function gpsInformative(tiff: Tiff): boolean {
+  return (tiff.ifds.gps ?? []).some((e) => !GPS_HOUSEKEEPING.has(e.tag));
+}
+
+/** Skip housekeeping-only GPS tags when there is no real GPS information. */
+function silentGps(tiff: Tiff, ifd: IfdName, tag: number, informative: boolean): boolean {
+  return ifd === 'gps' && !informative && GPS_HOUSEKEEPING.has(tag);
+}
+
 export interface ExifAnalysis {
   findings: Finding[];
   gps?: GpsPoint;
@@ -232,9 +248,11 @@ export function analyzeTiff(tiff: Tiff, source: Source, removable = true): ExifA
   const { le } = tiff;
   const out: ExifAnalysis = { findings: [], serialNumbers: [], names: [], software: [] };
   const get = (ifd: IfdName, tag: number) => tiff.ifds[ifd]?.find((e) => e.tag === tag);
+  const informative = gpsInformative(tiff);
 
   for (const ifd of ['ifd0', 'exif', 'gps', 'interop', 'ifd1'] as IfdName[]) {
     for (const e of tiff.ifds[ifd] ?? []) {
+      if (silentGps(tiff, ifd, e.tag, informative)) continue;
       if (ifd !== 'ifd1' && (e.tag === POINTER_TAGS.exif || e.tag === POINTER_TAGS.gps || e.tag === POINTER_TAGS.interop)) continue;
       const cls = classifyTag(ifd, e.tag);
       if (cls === 'technical') continue;
@@ -315,8 +333,10 @@ export function analyzeTiff(tiff: Tiff, source: Source, removable = true): ExifA
 
 export function tiffCategories(tiff: Tiff): Set<Category> {
   const s = new Set<Category>();
+  const informative = gpsInformative(tiff);
   for (const ifd of ['ifd0', 'exif', 'gps', 'interop', 'ifd1'] as IfdName[]) {
     for (const e of tiff.ifds[ifd] ?? []) {
+      if (silentGps(tiff, ifd, e.tag, informative)) continue;
       if (ifd !== 'ifd1' && (e.tag === POINTER_TAGS.exif || e.tag === POINTER_TAGS.gps || e.tag === POINTER_TAGS.interop)) continue;
       const c = classifyTag(ifd, e.tag);
       if (c !== 'technical') s.add(c);
@@ -354,8 +374,10 @@ export function buildTiff(tiff: Tiff, opts: BuildOptions): BuildResult {
   const { le } = tiff;
   const removed = new Set<Category>();
   const notes: string[] = [];
+  const informative = gpsInformative(tiff);
   const keep = (ifd: IfdName, e: IfdEntry): boolean => {
     if (ifd !== 'ifd1' && (e.tag === POINTER_TAGS.exif || e.tag === POINTER_TAGS.gps || e.tag === POINTER_TAGS.interop)) return false;
+    if (silentGps(tiff, ifd, e.tag, informative)) return !opts.remove.has('location');
     const c: TagClass = classifyTag(ifd, e.tag);
     if (c === 'technical') return true;
     if (opts.remove.has(c)) {

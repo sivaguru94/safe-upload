@@ -128,8 +128,43 @@ export function parseJpeg(b: Uint8Array): ParsedJpeg {
   return { head, scanStart, imageEnd, trailer: b.subarray(imageEnd), width, height };
 }
 
+/** Image types declared in a CIPA DC-007 multi-picture (MPF) index. */
+const MP_TYPES: Record<number, string> = {
+  0x010001: 'Large preview copy of the picture (VGA)',
+  0x010002: 'Large preview copy of the picture (Full HD)',
+  0x010003: 'Large preview copy of the picture (4K)',
+  0x010004: 'Large preview copy of the picture (8K)',
+  0x010005: 'Large preview copy of the picture (16K)',
+  0x020001: 'Panorama frame',
+  0x020002: 'Stereo (disparity) image',
+  0x020003: 'Multi-angle image',
+  0x040000: 'Original, unedited image',
+  0x050000: 'HDR gain map',
+};
+
+/**
+ * Read the MPF index in an APP2 segment and return a label for each extra image, keyed by its
+ * absolute offset in the file. Offsets in the index count from the MPF TIFF header.
+ */
+export function mpfLabels(seg: JpegSegment): Map<number, string> {
+  const out = new Map<number, string>();
+  const tiff = parseTiff(seg.payload.subarray(4));
+  const entry = tiff?.ifds.ifd0?.find((e) => e.tag === 0xb002);
+  if (!tiff || !entry) return out;
+  const v = entry.value;
+  const r32 = (o: number) => (tiff.le ? (v[o] | (v[o + 1] << 8) | (v[o + 2] << 16) | (v[o + 3] << 24)) >>> 0 : u32be(v, o));
+  const tiffAbs = seg.start + 4 + 4;
+  for (let o = 0; o + 16 <= v.length; o += 16) {
+    const type = r32(o) & 0xffffff;
+    const offset = r32(o + 8);
+    if (offset === 0) continue; // the main image
+    out.set(tiffAbs + offset, MP_TYPES[type] ?? 'Extra image (for example an HDR gain map, depth map or preview)');
+  }
+  return out;
+}
+
 /** Split bytes after the main image into recognisable items (extra JPEGs, MP4/MOV video, vendor data). */
-export function splitTrailer(trailer: Uint8Array, motionVideoLength?: number): HiddenMedia[] {
+export function splitTrailer(trailer: Uint8Array, motionVideoLength?: number, labelAt?: (relativeOffset: number) => string | undefined): HiddenMedia[] {
   const items: HiddenMedia[] = [];
   const n = trailer.length;
   // Google motion photos declare the video length counted from the end of the file.
@@ -150,7 +185,7 @@ export function splitTrailer(trailer: Uint8Array, motionVideoLength?: number): H
     if (isJpeg(trailer.subarray(p, p + 4))) {
       const end = findJpegEnd(trailer, p);
       const limit = videoStart >= 0 ? Math.min(end, videoStart) : end;
-      items.push({ kind: 'image', mime: 'image/jpeg', label: 'Extra image (for example an HDR gain map or depth map)', bytes: trailer.subarray(p, limit) });
+      items.push({ kind: 'image', mime: 'image/jpeg', label: labelAt?.(p) ?? 'Extra image (for example an HDR gain map, depth map or preview)', bytes: trailer.subarray(p, limit) });
       p = limit;
       continue;
     }
@@ -174,6 +209,7 @@ export function inspectJpeg(b: Uint8Array, c: Collector): void {
   c.report.height = j.height;
   let motionVideoLength: number | undefined;
   let comIndex = 0;
+  let mpf = new Map<number, string>();
   for (const s of j.head) {
     switch (s.kind) {
       case 'exif':
@@ -192,7 +228,8 @@ export function inspectJpeg(b: Uint8Array, c: Collector): void {
         c.irb(s.payload, 'iptc');
         break;
       case 'mpf':
-        c.add({ category: 'hidden', source: 'jpeg', key: 'jpeg.MPF', label: 'Multi-picture index', value: 'The file declares extra pictures stored after the main image', removable: true });
+        mpf = mpfLabels(s);
+        c.add({ category: 'hidden', source: 'jpeg', key: 'jpeg.MPF', label: 'Multi-picture index', value: `The file declares ${mpf.size || 'some'} extra picture${mpf.size === 1 ? '' : 's'} stored after the main image`, removable: true });
         break;
       case 'jumbf':
         c.add({ category: 'provenance', source: 'jpeg', key: 'jpeg.JUMBF', label: 'Content credentials (C2PA/JUMBF)', value: `${s.payload.length.toLocaleString('en')} bytes`, removable: true });
@@ -213,7 +250,7 @@ export function inspectJpeg(b: Uint8Array, c: Collector): void {
     }
   }
   if (j.trailer.length) {
-    const items = splitTrailer(j.trailer, motionVideoLength);
+    const items = splitTrailer(j.trailer, motionVideoLength, (rel) => mpf.get(j.imageEnd + rel));
     const meaningful = items.filter((i) => i.bytes.length > 0);
     for (const h of meaningful) {
       c.hidden(h);

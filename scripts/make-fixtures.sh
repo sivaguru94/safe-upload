@@ -64,3 +64,32 @@ exiftool -q -overwrite_original "${COMMON[@]}" base.avif && mv base.avif full.av
 
 rm -f scene.png crop.png thumb.jpg
 ls -la
+
+# --- Nikon-style cases (added 2026-11-10) -----------------------------------
+# A camera without GPS: Nikon still writes a GPS block holding only GPSVersionID.
+magick -size 120x80 gradient:'#335533'-'#ddcc99' -quality 85 nogps.jpg
+exiftool -q -overwrite_original -Make='NIKON CORPORATION' -Model='NIKON D5600' -Software='Ver.1.10' -GPSVersionID=2.3.0.0 -Orientation#=6 nogps.jpg
+# MPF (CIPA DC-007) index pointing at a Full HD preview copy stored after the main image.
+magick -size 64x48 gradient:'#aa3333'-'#3333aa' -quality 80 preview.jpg
+python3 -I - nogps.jpg preview.jpg mpf.jpg <<'PY'
+import struct, sys
+main, prev, out = (open(sys.argv[1], 'rb').read(), open(sys.argv[2], 'rb').read(), sys.argv[3])
+def entries(main_size, prev_off):
+    return (struct.pack('>IIIHH', 0x20030000, main_size, 0, 0, 0) +
+            struct.pack('>IIIHH', 0x00010002, len(prev), prev_off, 0, 0))
+ifd = struct.pack('>H', 3)
+ifd += struct.pack('>HHI', 0xB000, 7, 4) + b'0100'
+ifd += struct.pack('>HHII', 0xB001, 4, 1, 2)
+ifd += struct.pack('>HHII', 0xB002, 7, 32, 8 + 2 + 3 * 12 + 4)
+ifd += struct.pack('>I', 0)
+def build(main_size, prev_off):
+    tiff = b'MM\x00\x2a' + struct.pack('>I', 8) + ifd + entries(main_size, prev_off)
+    payload = b'MPF\x00' + tiff
+    return b'\xff\xe2' + struct.pack('>H', len(payload) + 2) + payload
+seg_len = len(build(0, 0))
+main_size = len(main) + seg_len
+tiff_abs = 2 + 4 + 4
+data = main[:2] + build(main_size, main_size - tiff_abs) + main[2:] + prev
+open(out, 'wb').write(data)
+PY
+rm -f preview.jpg

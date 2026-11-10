@@ -181,3 +181,17 @@ test('says plainly when there is no GPS, and explains reverse image search witho
   }
   expect(w.foreign()).toEqual([]);
 });
+
+test('camera without GPS: no false location, preview copies labelled and shown upright', async ({ page }) => {
+  await page.goto('/');
+  await upload(page, 'mpf.jpg');
+  const verdict = page.locator('#verdict');
+  await expect(verdict).toContainText('no GPS position in the file');
+  await expect(verdict).not.toContainText('place names');
+  await expect(verdict).toContainText('large preview copy of the picture (Full HD)');
+  await expect(page.locator('.card[data-cat=location]')).toHaveCount(0);
+  const img = page.locator('.card[data-cat=hidden] img');
+  await expect(img).toHaveCount(1);
+  // The 64x48 preview carries the main photo's orientation 6, so it displays as 48 wide, 64 tall.
+  await expect.poll(() => img.evaluate((el: HTMLImageElement) => (el.complete ? `${el.naturalWidth}x${el.naturalHeight}` : ''))).toBe('48x64');
+});

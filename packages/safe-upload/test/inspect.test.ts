@@ -54,6 +54,22 @@ describe('inspect', () => {
     expect(r.summary.aiPrompt).toContain('14 Elm Street');
   });
 
+  it('does not call an empty GPS block (version only, as Nikon writes it) a location', async () => {
+    const r = await inspect(fixture('nogps.jpg'));
+    expect(r.categories).not.toContain('location');
+    expect(r.summary.gps).toBeUndefined();
+    expect(r.findings.some((f) => f.key === 'exif.GPSVersionID')).toBe(false);
+    expect(r.summary.device).toBe('NIKON CORPORATION NIKON D5600');
+  });
+
+  it('labels extra images from the MPF index', async () => {
+    const r = await inspect(fixture('mpf.jpg'));
+    expect(r.hidden).toHaveLength(1);
+    expect(r.hidden[0].label).toBe('Large preview copy of the picture (Full HD)');
+    expect(r.hidden[0].bytes[0]).toBe(0xff);
+    expect(r.findings.find((f) => f.key === 'jpeg.MPF')?.value).toContain('1 extra picture');
+  });
+
   it('rejects files that are not images', async () => {
     await expect(inspect(new TextEncoder().encode('hello world, not an image'))).rejects.toThrow(/Unsupported/);
   });
