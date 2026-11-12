@@ -8,6 +8,11 @@ Ordered. One item in progress at a time.
    notice; e2e compares the strip path with the normal path pixel by pixel. STILL TO DO: try a 24 MP photo on a
    real iPhone. Same day: the iPhone "Take Photo" viewfinder was black because Permissions-Policy had camera=();
    now camera=(self).
+   2026-11-12 on a real iPhone (Safari and Chrome): picking from Photos hands the page a JPEG converted by
+   iOS (IMG_1234.jpeg) whatever `accept` says, and it KEEPS the GPS block; picking via Browse (Files, saved with
+   "All Photos Data") gives the original HEIC, also with GPS. reveal showed location/model/date for the HEIC and
+   the clean copy re-checked as no GPS. The page now notes the iOS conversion. Large-photo face hiding on the
+   phone is still untested.
 2. **Real-file corpus.** Run real files from the owner's devices through inspect/strip and the site:
    Pixel 7a motion photo (`.MP.jpg`), iPhone HEIC (thumbnail, depth, gain map), iPhone JPEG with gain map,
    WhatsApp-forwarded image, Android and macOS screenshots, Lightroom export. Turn each surprise into a

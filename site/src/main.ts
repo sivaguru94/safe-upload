@@ -132,6 +132,8 @@ async function open(file: File) {
 
   const dims = report.width && report.height ? ` · ${report.width}×${report.height}` : '';
   $('file-meta').textContent = `${file.name} · ${report.format.toUpperCase()} · ${bytes(report.size)}${dims}`;
+  // iOS hands web pages a JPEG named IMG_1234.jpeg when a HEIC is picked from Photos (camera originals end in .JPG/.HEIC).
+  $('ios-note').hidden = !(report.format === 'jpeg' && /^IMG_\d{4}\.jpeg$/.test(file.name));
 
   await renderVerdict();
   await renderReport();

@@ -264,3 +264,12 @@ test('very large photos are processed in strips at full resolution (iPhone canva
   expect(after.categories).not.toContain('location');
   expect(after.width ?? 1100).toBe(1100);
 });
+
+test('notes when iOS converted a HEIC to JPEG on pick, and only then', async ({ page }) => {
+  await page.goto('/');
+  await page.setInputFiles('#file', { name: 'IMG_2685.jpeg', mimeType: 'image/jpeg', buffer: readFileSync(join(FIX, 'full.jpg')) });
+  await expect(page.locator('#ios-note')).toBeVisible();
+  await expect(page.locator('#ios-note')).toContainText('converted this photo to JPEG');
+  await page.setInputFiles('#file', { name: 'IMG_2685.JPG', mimeType: 'image/jpeg', buffer: readFileSync(join(FIX, 'full.jpg')) });
+  await expect(page.locator('#ios-note')).toBeHidden();
+});
