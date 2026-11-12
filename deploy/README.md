@@ -11,5 +11,7 @@ scripts/deploy.sh            # build, precompress, rsync to ~/stacks/reveal, com
 Tailnet preview: `sudo tailscale serve --bg --https=8444 http://127.0.0.1:8090`
 → https://oci-shinigami.tail338aee.ts.net:8444
 
-Public launch (reveal.shinigami-rog.cc): add a Cloudflare Tunnel hostname pointing at the
-container, the same way the ntfy tunnel works on that host.
+Public: https://reveal.shinigami-rog.cc through the Cloudflare Tunnel `reveal`, run by the
+`cloudflared` service in `compose.yaml`. Its `config.yml` and tunnel credential live in
+`~/stacks/reveal/cloudflared/` on the host (owned by uid 65532, never committed). nginx sends
+`Cache-Control: no-transform` so Cloudflare cannot inject scripts, and keeps no access log.
