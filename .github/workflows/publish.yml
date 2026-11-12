@@ -1,0 +1,31 @@
+name: publish
+# Publishes packages/safe-upload to npm when a tag vX.Y.Z is pushed.
+# Auth is npm trusted publishing (OIDC, no token); provenance links the package to this commit.
+# One-time setup on npmjs.com: package settings > Trusted publisher > GitHub Actions,
+# repo sivaguru94/safe-upload, workflow publish.yml.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    container: node:24-trixie
+    steps:
+      - uses: actions/checkout@v5
+      - run: apt-get update && apt-get install -y --no-install-recommends libimage-exiftool-perl imagemagick libheif1
+      - name: Tag matches package version
+        run: |
+          v=$(node -p "require('./packages/safe-upload/package.json').version")
+          test "v$v" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME != package v$v"; exit 1; }
+      - run: npm install -g npm@11.19.1
+      - run: npm ci
+      - run: npm run typecheck -w safe-upload
+      - run: npm test
+      - run: npm run build -w safe-upload
+      - run: npm publish --provenance --access public
+        working-directory: packages/safe-upload
