@@ -1,6 +1,7 @@
 # reveal static site on oci-shinigami (~/stacks/reveal). Bound to localhost; exposed on the
-# tailnet with `tailscale serve --https=8444` for preview, and publicly via a Cloudflare Tunnel
-# (reveal.shinigami-rog.cc) once launched.
+# tailnet with `tailscale serve --https=8444` for preview, and publicly at reveal.shinigami-rog.cc
+# through the Cloudflare Tunnel `reveal` (cloudflared below; ./cloudflared holds config.yml and the
+# tunnel credential, created on the host, never committed). No inbound port is opened.
 services:
   web:
     image: nginxinc/nginx-unprivileged:1.31.7-alpine
@@ -22,3 +23,17 @@ services:
       interval: 60s
       timeout: 5s
       retries: 3
+
+  cloudflared:
+    image: cloudflare/cloudflared:2026.10.7
+    container_name: reveal-cloudflared
+    command: tunnel --no-autoupdate run reveal
+    restart: unless-stopped
+    mem_limit: 128m
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: [/tmp]
+    volumes:
+      - ./cloudflared:/home/nonroot/.cloudflared:ro
+    depends_on: [web]
