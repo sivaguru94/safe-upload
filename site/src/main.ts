@@ -3,6 +3,7 @@ import { CATEGORY_INFO, inspect, neutralFileName, strip, type Category, type Rep
 import type { ObjectHint } from 'safe-upload/browser';
 import { $, bytes, h, s } from './dom.js';
 import { loadCities } from './geo.js';
+import { initTheme } from './theme.js';
 import { fileNameLine, renderCards, renderFileCard, renderObjectsCard, renderWebCard, revokeUrls, verdictLines, type VerdictLine } from './report.js';
 
 type Kind = 'face' | 'object' | 'manual';
@@ -36,23 +37,7 @@ const FACE_MODEL = '/models/blaze_face_full_range.tflite';
 const OBJECT_MODEL = '/models/efficientdet_lite0.tflite';
 
 // ------------------------------------------------------------------ theme
-const root = document.documentElement;
-function setTheme(t: string) {
-  root.dataset.theme = t;
-  try {
-    localStorage.setItem('reveal-theme', t);
-  } catch {
-    /* storage may be blocked */
-  }
-}
-try {
-  const saved = localStorage.getItem('reveal-theme');
-  if (saved) root.dataset.theme = saved;
-  else if (matchMedia('(prefers-color-scheme: light)').matches) root.dataset.theme = 'light';
-} catch {
-  /* ignore */
-}
-$('theme').addEventListener('click', () => setTheme(root.dataset.theme === 'light' ? 'dark' : 'light'));
+initTheme($('theme'));
 $('csp').textContent = __CSP__.split('; ').join(';\n');
 
 // ------------------------------------------------------------------ input

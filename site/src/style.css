@@ -231,3 +231,18 @@ pre.code { white-space: pre; }
 ul.plain { margin: 0 0 10px; padding-left: 18px; font-size: 0.9rem; display: grid; gap: 4px; }
 .card .row { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0; }
 .secondary.small { padding: 7px 11px; font-size: 0.82rem; text-decoration: none; display: inline-block; }
+
+/* guides and FAQ */
+#faq details { border-bottom: 1px solid var(--line); padding: 10px 0; }
+#faq summary { cursor: pointer; font-weight: 600; }
+#faq details p { color: var(--dim); margin: 8px 0 4px; }
+.guide { max-width: 760px; margin: 0 auto; padding: 40px 0 56px; }
+.guide h1 { font-size: clamp(1.7rem, 4vw, 2.4rem); }
+.guide h2 { font-family: var(--mono); font-size: 1.2rem; margin: 32px 0 10px; }
+.guide li { margin: 6px 0; }
+.guide code { font-family: var(--mono); font-size: 0.88em; }
+.crumbs { font-family: var(--mono); font-size: 0.85rem; color: var(--dim); margin: 0 0 16px; }
+.dim { color: var(--dim); }
+.guide-list { list-style: none; padding: 0; display: grid; gap: 18px; }
+.cta { margin-top: 36px; padding-top: 20px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.cta .primary { text-decoration: none; }

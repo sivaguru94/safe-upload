@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "prepare-assets": "node ../scripts/site-assets.mjs",
+    "prepare-assets": "node ../scripts/site-assets.mjs && node ../scripts/site-pages.mjs",
     "dev": "npm run prepare-assets && vite",
     "build": "npm run prepare-assets && vite build",
     "preview": "vite preview --port 4173 --strictPort --host"

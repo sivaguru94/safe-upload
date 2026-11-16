@@ -273,3 +273,30 @@ test('notes when iOS converted a HEIC to JPEG on pick, and only then', async ({ 
   await page.setInputFiles('#file', { name: 'IMG_2685.JPG', mimeType: 'image/jpeg', buffer: readFileSync(join(FIX, 'full.jpg')) });
   await expect(page.locator('#ios-note')).toBeHidden();
 });
+
+test('guides and FAQ: every sitemap page loads, is canonical, has valid structured data and contacts nobody', async ({ page, request }) => {
+  const w = watch(page);
+  const sitemap = await (await request.get('/sitemap.xml')).text();
+  const paths = [...sitemap.matchAll(/<loc>https:\/\/reveal\.shinigami-rog\.cc(\/[^<]*)<\/loc>/g)].map((m) => m[1]);
+  expect(paths.length).toBeGreaterThanOrEqual(7);
+  expect(await (await request.get('/robots.txt')).text()).toContain('Sitemap: https://reveal.shinigami-rog.cc/sitemap.xml');
+  for (const p of paths) {
+    await page.goto(p);
+    await expect(page.locator('h1')).toHaveCount(1);
+    expect(await page.locator('link[rel=canonical]').getAttribute('href')).toBe(`https://reveal.shinigami-rog.cc${p}`);
+    const blocks = await page.locator('script[type="application/ld+json"]').allTextContents();
+    expect(blocks.length).toBeGreaterThan(0);
+    for (const b of blocks) expect(JSON.parse(b)['@context']).toBe('https://schema.org');
+    for (const href of await page.locator('main a[href^="/"]').evaluateAll((as) => as.map((a) => a.getAttribute('href')!))) {
+      expect((await request.get(href)).status(), `${p} links to ${href}`).toBe(200);
+    }
+  }
+  await page.goto('/');
+  const faq = page.locator('#faq details');
+  await expect(faq).toHaveCount(7);
+  const ld = (await page.locator('script[type="application/ld+json"]').allTextContents()).map((b) => JSON.parse(b));
+  expect(ld.find((d) => d['@type'] === 'FAQPage').mainEntity).toHaveLength(7);
+  expect(ld.find((d) => d['@type'] === 'WebApplication').url).toBe('https://reveal.shinigami-rog.cc/');
+  expect(w.foreign()).toEqual([]);
+  expect(w.problems).toEqual([]);
+});

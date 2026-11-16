@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://reveal.shinigami-rog.cc/sitemap.xml

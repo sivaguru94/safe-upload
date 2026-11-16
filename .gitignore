@@ -9,3 +9,5 @@ fixtures/out/
 site/public/mediapipe/
 test-results/
 playwright-report/
+site/guides/
+site/public/sitemap.xml

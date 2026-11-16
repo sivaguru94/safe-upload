@@ -14,6 +14,7 @@
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="canonical" href="https://reveal.shinigami-rog.cc/" />
+    <!-- structured-data -->
   </head>
   <body>
     <div class="scanlines" aria-hidden="true"></div>
@@ -23,6 +24,7 @@
         <a href="#how">how</a>
         <a href="#proof">proof</a>
         <a href="#dev">developers</a>
+        <a href="/guides/">guides</a>
         <a href="https://github.com/sivaguru94/safe-upload" rel="noopener">github</a>
         <button id="theme" class="ghost" type="button" aria-label="Switch colour theme">◐</button>
       </nav>
@@ -124,10 +126,25 @@ const report = await inspect(file);   // what the photo reveals
 const clean  = await strip(file);     // lossless: GPS, serials, names… removed
 await fetch('/upload', { method: 'POST', body: new Blob([clean.bytes], { type: clean.mime }) });</code></pre>
       </section>
+      <section class="info" id="faq">
+        <h2><span class="accent">#</span> questions</h2>
+        <!-- faq -->
+      </section>
+
+      <section class="info" id="guides">
+        <h2><span class="accent">#</span> guides</h2>
+        <ul class="proofs">
+          <li><a href="/guides/what-your-photo-metadata-reveals/">What your photo’s metadata reveals</a></li>
+          <li><a href="/guides/remove-location-from-iphone-photos/">Remove the location from iPhone photos</a></li>
+          <li><a href="/guides/remove-location-from-android-photos/">Remove the location from Android photos</a></li>
+          <li><a href="/guides/hidden-video-in-motion-photos/">The hidden video inside motion photos</a></li>
+          <li><a href="/guides/photos-sent-as-files-keep-metadata/">Photos sent as files keep their metadata</a></li>
+        </ul>
+      </section>
     </main>
 
     <footer class="foot">
-      <p>Built by <a href="https://shinigami-rog.cc/sivaguru-ravi" rel="noopener">Sivaguru Ravi</a> · <a href="https://github.com/sivaguru94/safe-upload" rel="noopener">source (MIT)</a></p>
+      <p>Built by <a href="https://shinigami-rog.cc/sivaguru-ravi" rel="noopener">Sivaguru Ravi</a> · <a href="https://github.com/sivaguru94/safe-upload" rel="noopener">source (MIT)</a> · <a href="/guides/">guides</a></p>
       <p class="credits">Privacy: photos are read and cleaned in your browser and never sent anywhere. This server keeps no access log. Cloudflare, which carries the connection, sees your IP address and browser like for any site, but never your photos.</p>
       <p class="credits">Place names © <a href="https://www.geonames.org" rel="noopener">GeoNames</a> (CC BY 4.0) · Map: Natural Earth · Face detection: MediaPipe (Apache-2.0) · Sample photo: NASA/Josh Valcarcel (public domain), example metadata added.</p>
     </footer>
