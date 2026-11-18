@@ -6,6 +6,8 @@ The `safe-upload` npm package has no runtime dependencies. The demo site bundles
 |------|--------|---------|
 | Face detection runtime (`@mediapipe/tasks-vision`) | Google MediaPipe | Apache-2.0 |
 | BlazeFace full-range face model (`blaze_face_full_range.tflite`) | Google MediaPipe | Apache-2.0 |
+| Text detection runtime (`onnxruntime-web`) | Microsoft | MIT |
+| PP-OCRv4 mobile text-detection model (`ppocrv4_mobile_det.onnx`, ONNX export via RapidOCR) | PaddlePaddle / PaddleOCR | Apache-2.0 |
 | EfficientDet-Lite0 object model (`efficientdet_lite0.tflite`, int8, COCO classes) | Google MediaPipe | Apache-2.0 |
 | Place names (`site/public/geo/cities.tsv`, cities with 15,000+ people) | [GeoNames](https://www.geonames.org) | CC BY 4.0 |
 | World outline (`site/src/data/worldmap.ts`, 1:110m land) | [Natural Earth](https://www.naturalearthdata.com) | Public domain |

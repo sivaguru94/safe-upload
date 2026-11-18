@@ -7,3 +7,5 @@ export type { Box } from './mediapipe.js';
 export { redact } from './redact.js';
 export type { RedactOptions, RedactResult, RedactStyle } from './redact.js';
 export { decode, decodeImage, IOS_CANVAS_LIMIT } from './canvas.js';
+export { detectText, preloadTextDetector, plateCandidates, textBoxesFromMap } from './text.js';
+export type { TextBox, TextDetectionOptions } from './text.js';

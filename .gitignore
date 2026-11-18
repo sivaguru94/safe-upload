@@ -12,3 +12,4 @@ playwright-report/
 site/guides/
 site/public/sitemap.xml
 .shots/
+site/public/ort/

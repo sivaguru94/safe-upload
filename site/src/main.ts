@@ -6,7 +6,7 @@ import { loadCities } from './geo.js';
 import { initTheme } from './theme.js';
 import { fileNameLine, renderCards, renderFileCard, renderObjectsCard, renderWebCard, revokeUrls, verdictLines, type VerdictLine } from './report.js';
 
-type Kind = 'face' | 'object' | 'manual';
+type Kind = 'face' | 'object' | 'plate' | 'text' | 'manual';
 interface Region {
   x: number;
   y: number;
@@ -35,6 +35,8 @@ const state: {
 const WASM = '/mediapipe/';
 const FACE_MODEL = '/models/blaze_face_full_range.tflite';
 const OBJECT_MODEL = '/models/efficientdet_lite0.tflite';
+const ORT_WASM = '/ort/';
+const TEXT_MODEL = '/models/ppocrv4_mobile_det.onnx';
 
 // ------------------------------------------------------------------ theme
 initTheme($('theme'));
@@ -233,7 +235,7 @@ $('scan').addEventListener('click', async () => {
   const hint = $('face-hint');
   hint.textContent = 'Downloading the detectors from this site (about 10 MB, once). They run on your device.';
   try {
-    const { detectFaces, detectObjects, objectHints, pad, visionSupported } = await import('safe-upload/browser');
+    const { detectFaces, detectObjects, detectText, objectHints, pad, plateCandidates, visionSupported } = await import('safe-upload/browser');
     if (!visionSupported()) {
       hint.textContent = 'On-device detection needs WebGL, which is turned off in this browser. Use "Draw a box" to cover faces and anything else yourself; hiding still happens on your device.';
       btn.textContent = 'Scan unavailable';
@@ -253,9 +255,32 @@ $('scan').addEventListener('click', async () => {
     const objectRegions: Region[] = state.hints
       .filter((x) => x.redactable)
       .flatMap((x) => x.objects.map((o) => ({ x: o.x, y: o.y, width: o.width, height: o.height, on: false, kind: 'object' as Kind, label: o.label, group: x.kind })));
+
+    // Text: plates on vehicles are hidden by default; other readable text is offered (dashed boxes).
+    await step('Looking for number plates and text…');
+    let textRegions: Region[] = [];
+    try {
+      const text = await detectText(img, { wasmBaseUrl: ORT_WASM, modelAssetUrl: TEXT_MODEL });
+      const vehicles = objects.filter((o) => ['car', 'truck', 'bus', 'motorcycle'].includes(o.label));
+      const plates = plateCandidates(text, vehicles);
+      textRegions = text.map((t, i) => {
+        const plate = plates.has(i);
+        const p = pad(t, 0.05, state.w, state.h);
+        return { ...p, on: plate, kind: (plate ? 'plate' : 'text') as Kind, label: plate ? 'number plate' : 'text', group: plate ? 'plate' : 'text' };
+      });
+      const nPlates = textRegions.filter((r) => r.kind === 'plate').length;
+      const nText = textRegions.length - nPlates;
+      const extra: ObjectHint[] = [];
+      if (nPlates) extra.push({ kind: 'plate', title: `${nPlates} number plate${nPlates === 1 ? '' : 's'} (hidden)`, hint: 'Text on a vehicle is almost always its registration: it leads to the owner and, with the surroundings, to where they live. Hidden by default; tap a box to show it.', redactable: true, objects: [], on: true } as unknown as ObjectHint);
+      if (nText) extra.push({ kind: 'text', title: `${nText} piece${nText === 1 ? '' : 's'} of readable text`, hint: 'House numbers, shop and street signs, name tags, letters and screens can name a person or a place. Dashed boxes mark them; tap one to hide it.', redactable: true, objects: [] } as unknown as ObjectHint);
+      state.hints = [...extra, ...state.hints];
+    } catch (err) {
+      console.warn('text detection failed', err);
+    }
     state.regions = [
       ...state.regions.filter((r) => r.kind === 'manual'),
       ...faces.map((f) => ({ ...pad(f, 0.22, state.w, state.h), on: true, kind: 'face' as Kind, label: 'face' })),
+      ...textRegions,
       ...objectRegions,
     ];
     popIn = new Set(state.regions.filter((r) => r.kind !== 'manual'));
@@ -263,9 +288,12 @@ $('scan').addEventListener('click', async () => {
     drawRegions();
     await renderReport();
     updateNote();
+    const plateCount = textRegions.filter((r) => r.kind === 'plate').length;
+    const plateLine = plateCount ? ` Hiding ${plateCount} number plate${plateCount === 1 ? '' : 's'}.` : '';
     const extra = objectRegions.length ? ` Dashed boxes mark ${objectRegions.length} thing${objectRegions.length === 1 ? '' : 's'} that may need hiding (screens, vehicles, papers); click to hide.` : '';
     hint.textContent =
       (faces.length ? `Found ${faces.length} face${faces.length === 1 ? '' : 's'}; they will be hidden in the download. Click a box to keep that face visible.` : 'No faces found.') +
+      plateLine +
       extra +
       ' Detection can miss things: draw a box over anything it missed.';
     btn.textContent = 'Scan again';

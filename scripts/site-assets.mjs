@@ -9,3 +9,10 @@ const dst = join(root, 'site/public/mediapipe');
 mkdirSync(dst, { recursive: true });
 for (const f of ['vision_wasm_internal.js', 'vision_wasm_internal.wasm']) copyFileSync(join(src, f), join(dst, f));
 console.log('copied MediaPipe runtime to site/public/mediapipe');
+
+// Same for onnxruntime-web (text detection). Single-threaded SIMD build; no CDN.
+const ortSrc = join(root, 'node_modules/onnxruntime-web/dist');
+const ortDst = join(root, 'site/public/ort');
+mkdirSync(ortDst, { recursive: true });
+for (const f of ['ort-wasm-simd-threaded.mjs', 'ort-wasm-simd-threaded.wasm']) copyFileSync(join(ortSrc, f), join(ortDst, f));
+console.log('copied onnxruntime-web runtime to site/public/ort');

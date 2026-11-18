@@ -11,6 +11,7 @@
   "dependencies": {
     "@jsquash/jpeg": "1.6.0",
     "@mediapipe/tasks-vision": "1.2.2",
+    "onnxruntime-web": "1.31.1",
     "safe-upload": "*"
   },
   "devDependencies": {

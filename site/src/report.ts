@@ -110,7 +110,8 @@ export function renderObjectsCard(hints: ObjectHint[], onHide: (kind: string, on
   for (const hint of hints) {
     const btn = hint.redactable ? h('button', { class: 'link', type: 'button' }, 'hide them') : null;
     if (btn) {
-      let on = false;
+      let on = (hint as { on?: boolean }).on === true;
+      btn.textContent = on ? 'show them' : 'hide them';
       btn.addEventListener('click', () => {
         on = !on;
         btn.textContent = on ? 'show them' : 'hide them';

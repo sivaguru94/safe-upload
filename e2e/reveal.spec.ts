@@ -325,3 +325,25 @@ test('your own boxes are removed with a tap, also while still drawing @mobile', 
   await mine.click();
   await expect(mine).toHaveCount(0);
 });
+
+test('finds readable text on-device and offers it for hiding @mobile', async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto('/');
+  await page.setInputFiles('#file', join(FIX, 'text-sign.jpg'));
+  await page.click('#scan');
+  await expect(page.locator('#scan')).toHaveText(/Scan again|Scan unavailable/, { timeout: 60_000 });
+  test.skip((await page.locator('#scan').textContent()) === 'Scan unavailable', 'no WebGL in this browser');
+  const text = page.locator('#overlay rect.box.text');
+  await expect(text.first()).toBeVisible();
+  // The box sits on the painted plate (900x500 image, plate at 180..720 x 190..310).
+  const r = await text.first().evaluate((el) => ['x', 'y', 'width', 'height'].map((a) => Number(el.getAttribute(a))));
+  expect(r[0]).toBeGreaterThan(150);
+  expect(r[1]).toBeGreaterThan(160);
+  expect(r[0] + r[2]).toBeLessThan(760);
+  expect(r[1] + r[3]).toBeLessThan(340);
+  await expect(page.locator('.card[data-cat=objects]')).toContainText('readable text');
+  // Off by default (no vehicle around it); a tap turns it on.
+  await expect(text.first()).toHaveClass(/off/);
+  await text.first().click();
+  await expect(page.locator('#overlay rect.box.text').first()).not.toHaveClass(/off/);
+});

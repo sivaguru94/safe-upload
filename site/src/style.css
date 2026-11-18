@@ -239,6 +239,10 @@ pre.code { white-space: pre; }
 .verdict li.ok .k { color: var(--accent); }
 .verdict li.ok .v { font-weight: 400; color: var(--dim); }
 .overlay .box.object { stroke: var(--medium); fill: rgba(255, 179, 71, 0.14); }
+.overlay .box.plate { stroke: var(--high); fill: rgba(255, 107, 107, 0.16); }
+.overlay .box.plate.off { fill: transparent; stroke-dasharray: 6 4; }
+.overlay .box.text { stroke: #6fb3ff; fill: rgba(111, 179, 255, 0.14); }
+.overlay .box.text.off { fill: transparent; stroke-dasharray: 4 4; opacity: 0.85; }
 .overlay .box.object.off { stroke: var(--medium); fill: transparent; stroke-dasharray: 4 4; opacity: 0.8; }
 .hint-row { margin: 8px 0 0; }
 .hint-row .desc { margin: 2px 0 0; }
