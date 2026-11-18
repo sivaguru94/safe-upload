@@ -1,6 +1,7 @@
 import { latin1, u16be, u32be, u64be } from './bytes.js';
 import { Collector } from './collect.js';
 import { buildTiff, parseTiff, tiffCategories } from './exif.js';
+import { blankIccDate, iccDate, iccDateReveals } from './icc.js';
 import type { FormatStrip } from './jpeg.js';
 import type { Category, Finding, Format } from './types.js';
 import { analyzeXmp, emptyXmpPacket } from './xmp.js';
@@ -241,6 +242,20 @@ function extras(h: Heif): Extra[] {
   return out;
 }
 
+/** ICC profiles in colr properties whose header date was written for this picture. */
+function datedProfiles(h: Heif): { index: number; icc: Uint8Array; date: string }[] {
+  const out: { index: number; icc: Uint8Array; date: string }[] = [];
+  h.props.forEach((prop, i) => {
+    if (prop.type !== 'colr' || prop.data.length < 4) return;
+    const kind = latin1(prop.data, 0, 4);
+    if (kind !== 'prof' && kind !== 'rICC') return;
+    const icc = prop.data.subarray(4);
+    const date = iccDate(icc);
+    if (date && iccDateReveals(date)) out.push({ index: i + 1, icc, date });
+  });
+  return out;
+}
+
 export function inspectHeif(b: Uint8Array, c: Collector): void {
   const h = parseHeif(b);
   // Primary image size from its ispe property
@@ -259,6 +274,9 @@ export function inspectHeif(b: Uint8Array, c: Collector): void {
       const skip = u32be(d, 0);
       c.tiff(d.subarray(4 + skip), 'exif');
     } else if (isXmpItem(item) && item.extents.length) c.xmp(itemBytes(b, item), 'xmp');
+  }
+  for (const p of datedProfiles(h)) {
+    c.add({ category: 'time', source: 'icc', key: `heif.colr.${p.index}.date`, label: 'Colour profile date (written when the photo was processed)', value: p.date, removable: true });
   }
   for (const e of extras(h)) c.add({ ...e.finding, source: 'heif', removable: false });
   if (extras(h).length) c.note('HEIC/AVIF embedded thumbnails and auxiliary images cannot be removed without converting the photo.');
@@ -294,6 +312,12 @@ export function stripHeif(b: Uint8Array, remove: Set<Category>): FormatStrip {
       hits.forEach((c) => removed.add(c));
       writeItem(out, item, emptyXmpPacket(d.length));
       notes.push('The XMP metadata block was emptied as a whole.');
+    }
+  }
+  if (remove.has('time')) {
+    for (const p of datedProfiles(h)) {
+      out.set(blankIccDate(p.icc), p.icc.byteOffset - b.byteOffset);
+      removed.add('time');
     }
   }
   const retained: Finding[] = [];

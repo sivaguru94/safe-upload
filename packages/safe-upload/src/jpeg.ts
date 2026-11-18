@@ -1,6 +1,7 @@
 import { concat, latin1, putU16be, startsWith, u16be, u32be } from './bytes.js';
 import { Collector } from './collect.js';
 import { buildTiff, EXIF_HEADER, parseTiff, tiffCategories } from './exif.js';
+import { blankIccDate, iccDate, iccDateReveals } from './icc.js';
 import { analyzeIrb } from './iptc.js';
 import type { Category, Finding, HiddenMedia } from './types.js';
 import { analyzeXmp } from './xmp.js';
@@ -221,6 +222,11 @@ export function inspectJpeg(b: Uint8Array, c: Collector): void {
         c.xmp(s.payload.subarray(XMP_ID.length), 'xmp');
         break;
       }
+      case 'icc': {
+        const date = s.payload[12] === 1 ? iccDate(s.payload.subarray(14)) : undefined;
+        if (iccDateReveals(date)) c.add({ category: 'time', source: 'icc', key: 'jpeg.ICC.date', label: 'Colour profile date (written when the photo was processed)', value: date!, removable: true });
+        break;
+      }
       case 'xmpext':
         c.add({ category: 'other', source: 'xmp', key: 'xmp.extended', label: 'Extended XMP block', value: `${s.payload.length.toLocaleString('en')} bytes`, removable: true });
         break;
@@ -359,6 +365,16 @@ export function stripJpeg(b: Uint8Array, remove: Set<Category>, exifOverride?: {
         if (remove.has('provenance')) removed.add('provenance');
         else parts.push(raw);
         break;
+      case 'icc': {
+        const icc = s.payload.subarray(14);
+        if (remove.has('time') && s.payload[12] === 1 && iccDateReveals(iccDate(icc))) {
+          const copy = raw.slice();
+          copy.set(blankIccDate(icc), icc.byteOffset - raw.byteOffset);
+          parts.push(copy);
+          removed.add('time');
+        } else parts.push(raw);
+        break;
+      }
       case 'com':
         if (remove.has('descriptions')) removed.add('descriptions');
         else parts.push(raw);

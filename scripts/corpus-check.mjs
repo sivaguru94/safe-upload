@@ -13,8 +13,8 @@ if (!dir) throw new Error('usage: node scripts/corpus-check.mjs <dir> [out-dir]'
 const out = outArg ?? join(dir, '_check');
 mkdirSync(out, { recursive: true });
 
-const run = (cmd, args) => execFileSync(cmd, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
-const exif = (p) => JSON.parse(run('exiftool', ['-j', '-a', '-G1', '-u', '-b', '-api', 'LargeFileSupport=1', p]))[0];
+const run = (cmd, args) => execFileSync(cmd, args, { encoding: 'utf8', maxBuffer: 256 << 20, stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+const exif = (p) => JSON.parse(run('exiftool', ['-j', '-a', '-G1', '-u', '-api', 'LargeFileSupport=1', p]))[0];
 const pixels = (p) => { try { return run('magick', ['identify', '-format', '%#\n', p]).split('\n')[0]; } catch { return null; } };
 const IGNORE_GROUP = /^(System|File|ExifTool|Composite|SourceFile|ICC|ICC-header|ICC_Profile|ICC-view|ICC-meas|JFIF|RIFF)$/;
 // Container/codec structure exiftool reports for HEIF/AVIF; describes the picture, reveals nothing.
@@ -48,6 +48,10 @@ for (const name of readdirSync(dir).sort()) {
     const before = exif(src);
     const after = exif(clean);
     const leaks = Object.keys(after).filter((k) => LEAK.test(k.split(':').pop()) && !k.startsWith('Composite:'));
+    for (const [k, v] of Object.entries(after)) {
+      // Per-photo ICC profile dates (Apple HDR gain curve) give away when the photo was taken.
+      if (/^ICC-header\d*:ProfileDateTime$/.test(k) && Number(String(v).slice(0, 4)) >= 2015 && !String(v).endsWith(' 00:00:00')) leaks.push(`${k}=${v}`);
+    }
     if (leaks.length) { row.verdict = 'FAIL'; row.notes.push(`survived strip: ${leaks.join(', ')}`); }
     for (const k of ['ExifTool:Warning', 'ExifTool:Error']) {
       if (after[k] && after[k] !== before[k]) { row.verdict = 'FAIL'; row.notes.push(`clean file ${k.split(':')[1]}: ${after[k]}`); }

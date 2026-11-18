@@ -20,6 +20,13 @@ Ordered. One item in progress at a time.
    Runner: `node scripts/corpus-check.mjs <dir>` (build the package first) strips every file, then checks with
    exiftool that nothing revealing survived, with ImageMagick that pixels are unchanged, and lists metadata
    inspect() did not report. REPORT.md + clean copies go to <dir>/_check. FAIL = bug; LOOK = possible gap.
+   2026-11-18 first real iPhone 17 Pro HEIC (Taildrop): GPS/device/time all removed, pixels identical, BUT Apple's
+   per-photo HDR colour profile (gain-map colr, "Adaptive Gain Curve") kept its header date = processing time,
+   7 min after capture. FIXED: ICC dates from 2015+ that are not midnight are reported as `time` and zeroed (with
+   the MD5 profile ID) in HEIF colr and JPEG APP2; test/icc.test.ts. Still LOOK: the gain-map item carries an
+   Apple plist with tone statistics incl. PeopleRatio/SkinRatio (0 here); low risk, retained with the aux image.
+   iPhone screenshots (PNG) carry the capture time + "Screenshot" in EXIF and XMP; already removed.
+   WhatsApp-forwarded JPEG: no metadata at all. Still wanted: Pixel 7a motion photo, iOS-converted JPEG.
 3. **Exact privacy claim.** Turn off the nginx access log for this site; add a short privacy note saying
    Cloudflare (once public) sees connection details but never photos.
 4. **Publish with provenance.** Publish to npm from GitHub Actions (trusted publishing / provenance) so the
