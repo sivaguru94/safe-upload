@@ -216,8 +216,22 @@ pre.code { white-space: pre; }
   main { padding: 0 16px; }
   .hero { padding-top: 40px; }
 }
+/* scanning effect while the on-device detectors run: transform/opacity only, so it keeps moving on the compositor */
+.scanfx { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.scanfx::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(circle, var(--accent) 1px, transparent 1.5px); background-size: 22px 22px; opacity: 0; animation: scan-grid 1.8s ease-in-out infinite; }
+.scanfx .beam { position: absolute; inset: 0; will-change: transform; animation: scan-sweep 1.8s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+  background: linear-gradient(to bottom, transparent 55%, rgba(74, 240, 122, 0.06) 75%, rgba(74, 240, 122, 0.28) 97%, var(--accent) 99.4%, transparent 100%); }
+.scanfx .beam::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; box-shadow: 0 0 18px 4px rgba(74, 240, 122, 0.55); }
+@keyframes scan-sweep { from { transform: translateY(-100%); } to { transform: translateY(0%); } }
+@keyframes scan-grid { 0%, 100% { opacity: 0.06; } 50% { opacity: 0.2; } }
+.overlay .box.pop { transform-box: fill-box; transform-origin: center; animation: box-pop 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.3) both; }
+@keyframes box-pop { from { opacity: 0; transform: scale(1.35); } to { opacity: 1; transform: scale(1); } }
+
 @media (prefers-reduced-motion: reduce) {
   .cursor, .map .ring { animation: none; }
+  .scanfx .beam { animation: none; transform: none; background: rgba(74, 240, 122, 0.08); }
+  .scanfx::before { animation: none; opacity: 0.12; }
+  .overlay .box.pop { animation: none; }
   .drop { transition: none; }
 }
 

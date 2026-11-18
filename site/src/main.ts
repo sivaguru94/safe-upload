@@ -184,9 +184,13 @@ function setScanTools(enabled: boolean) {
   $('scan').textContent = 'Scan the picture';
 }
 
+/** Regions found by the last scan, drawn once with a pop-in animation. */
+let popIn = new Set<Region>();
+
 function drawRegions() {
   const svg = $('overlay') as unknown as SVGSVGElement;
   svg.replaceChildren();
+  let n = 0;
   state.regions.forEach((r) => {
     const rect = s('rect', { x: r.x, y: r.y, width: r.width, height: r.height, rx: Math.min(r.width, r.height) * (r.kind === 'face' ? 0.3 : 0.08), class: `box ${r.kind}${r.on ? '' : ' off'}` });
     if (r.label) {
@@ -195,6 +199,10 @@ function drawRegions() {
       rect.append(t);
     }
     if (r.kind === 'manual') rect.dataset.manual = '';
+    if (popIn.has(r)) {
+      rect.classList.add('pop');
+      rect.style.animationDelay = `${Math.min(n++, 12) * 70}ms`;
+    }
     rect.addEventListener('click', (e) => {
       e.stopPropagation();
       // Your own boxes go away on a tap (also while drawing); detected ones toggle on/off.
@@ -206,6 +214,7 @@ function drawRegions() {
     });
     svg.append(rect);
   });
+  popIn = new Set();
 }
 
 function toggleGroup(kind: string, on: boolean) {
@@ -219,6 +228,8 @@ $('scan').addEventListener('click', async () => {
   const img = $('preview-img') as HTMLImageElement;
   btn.disabled = true;
   btn.textContent = 'Loading detectors…';
+  const fx = $('scanfx');
+  fx.hidden = false;
   const hint = $('face-hint');
   hint.textContent = 'Downloading the detectors from this site (about 10 MB, once). They run on your device.';
   try {
@@ -228,9 +239,15 @@ $('scan').addEventListener('click', async () => {
       btn.textContent = 'Scan unavailable';
       return;
     }
-    btn.textContent = 'Scanning…';
-    await new Promise((r) => setTimeout(r, 30));
+    // Each step yields a frame first so the new label paints before the detector holds the main thread.
+    const step = async (label: string) => {
+      btn.textContent = label;
+      hint.textContent = `${label} Everything stays on this device.`;
+      await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 30)));
+    };
+    await step('Looking for faces…');
     const faces = await detectFaces(img, { wasmBaseUrl: WASM, modelAssetUrl: FACE_MODEL });
+    await step('Looking for vehicles, screens and papers…');
     const objects = await detectObjects(img, { wasmBaseUrl: WASM, modelAssetUrl: OBJECT_MODEL });
     state.hints = objectHints(objects);
     const objectRegions: Region[] = state.hints
@@ -241,6 +258,8 @@ $('scan').addEventListener('click', async () => {
       ...faces.map((f) => ({ ...pad(f, 0.22, state.w, state.h), on: true, kind: 'face' as Kind, label: 'face' })),
       ...objectRegions,
     ];
+    popIn = new Set(state.regions.filter((r) => r.kind !== 'manual'));
+    fx.hidden = true;
     drawRegions();
     await renderReport();
     updateNote();
@@ -254,6 +273,7 @@ $('scan').addEventListener('click', async () => {
     hint.textContent = `Scan failed: ${err instanceof Error ? err.message : String(err)}`;
     btn.textContent = 'Scan the picture';
   } finally {
+    fx.hidden = true;
     if (btn.textContent !== 'Scan unavailable') btn.disabled = false;
   }
 });
