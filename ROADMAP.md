@@ -37,11 +37,17 @@ Ordered. One item in progress at a time.
 5. **Launch steps (owner's go-ahead):** make the repo public, npm publish, reveal.shinigami-rog.cc via
    Cloudflare Tunnel, Uptime Kuma monitor, link from the portfolio site and resume.
 
-## 2. Text finder (queued 2026-11-10)
+## 2. Text finder (queued 2026-11-10; first version LIVE 2026-11-18)
 Small on-device text-detection model (a few MB, self-hosted, no recognition needed) that boxes readable
 text — house numbers, street and shop signs, name tags, school logos, letters, screens — so it can be
 hidden like faces. Feeds the existing overlay and `redact()`; adds a "Readable text" group to the
 "Visible in the picture" card. Must keep the no-outside-requests guarantee and the e2e test for it.
+2026-11-18: `detectText` = PP-OCRv4 mobile det ONNX (4.7 MB, Apache-2.0, via RapidOCR) on onnxruntime-web 1.31.1
+(single-threaded SIMD wasm, 14.8 MB, self-hosted under /ort/, nginx serves .mjs as JS). Text on a detected
+car/motorbike/bus/truck that is plate-shaped = "number plate", hidden by default; other text = dashed, opt-in.
+Real iPhone bike photos (12 + 24 MP): plate found and covered on both; scan ~7 s in headless Chromium.
+Follow-ups: brand badges on vehicles count as plates (harmless); tile large photos for small/distant text;
+plates without a detected vehicle fall back to plain text; run detection in a worker; npm release (0.2.0).
 
 ## 3. Later
 - HEIC face hiding in Chrome/Firefox via libheif WASM decode (and convert-to-JPEG).

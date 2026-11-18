@@ -189,6 +189,8 @@ for (const hint of objectHints(objects)) {
 | `detectFaces(source, options): Promise<FaceBox[]>` | On-device face detection (MediaPipe BlazeFace, full range). |
 | `preloadFaceDetector(options)` | Download and initialise the face model ahead of time. |
 | `detectObjects(source, options)`, `objectHints(objects)` | On-device object detection and privacy-oriented hints. |
+| `detectText(source, options): Promise<TextBox[]>` | On-device text detection (PaddleOCR PP-OCRv4 mobile det on `onnxruntime-web`, optional peer). Boxes words and lines (plates, signs, house numbers); reads nothing. Self-host the model and `ort-wasm-simd-threaded.{mjs,wasm}`. |
+| `plateCandidates(text, vehicles)` | Indexes of text boxes that sit on a detected vehicle and are plate-shaped. |
 | `redact(input, regions, options?): Promise<RedactResult>` | Pixelate, blur or fill regions and apply the metadata policy. |
 | `pad(box, fraction, maxWidth, maxHeight)` | Grow a detection box by a margin, clamped to the image. |
 | `faceDetectionSupported()`, `visionSupported()` | Feature detection (WebGL is required). |
