@@ -17,6 +17,9 @@ Ordered. One item in progress at a time.
    Pixel 7a motion photo (`.MP.jpg`), iPhone HEIC (thumbnail, depth, gain map), iPhone JPEG with gain map,
    WhatsApp-forwarded image, Android and macOS screenshots, Lightroom export. Turn each surprise into a
    fixture and a test, as was done for the Nikon empty GPS block and MPF previews.
+   Runner: `node scripts/corpus-check.mjs <dir>` (build the package first) strips every file, then checks with
+   exiftool that nothing revealing survived, with ImageMagick that pixels are unchanged, and lists metadata
+   inspect() did not report. REPORT.md + clean copies go to <dir>/_check. FAIL = bug; LOOK = possible gap.
 3. **Exact privacy claim.** Turn off the nginx access log for this site; add a short privacy note saying
    Cloudflare (once public) sees connection details but never photos.
 4. **Publish with provenance.** Publish to npm from GitHub Actions (trusted publishing / provenance) so the
