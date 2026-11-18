@@ -1,6 +1,6 @@
 {
   "name": "safe-upload",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "See and remove what a photo reveals before it leaves the device: GPS, device serials, names, edit history, hidden motion-photo video, AI prompts. Lossless, zero-dependency core; optional on-device face redaction.",
   "keywords": [
     "exif",
