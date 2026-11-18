@@ -12,3 +12,4 @@ rsync -a --delete site/dist/ "$HOST:stacks/reveal/www/"
 rsync -a --inplace deploy/compose.yaml deploy/nginx.conf deploy/security-headers.inc "$HOST:stacks/reveal/"
 ssh "$HOST" 'cd ~/stacks/reveal && sudo docker compose up -d && sudo docker exec reveal-web nginx -t -q && sudo docker exec reveal-web nginx -s reload'
 echo "deployed to $HOST:~/stacks/reveal"
+node scripts/indexnow.mjs || echo "IndexNow submission failed (site is deployed)"
