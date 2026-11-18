@@ -191,13 +191,16 @@ function drawRegions() {
     const rect = s('rect', { x: r.x, y: r.y, width: r.width, height: r.height, rx: Math.min(r.width, r.height) * (r.kind === 'face' ? 0.3 : 0.08), class: `box ${r.kind}${r.on ? '' : ' off'}` });
     if (r.label) {
       const t = s('title');
-      t.textContent = `${r.label}: click to ${r.on ? 'keep visible' : 'hide'}`;
+      t.textContent = r.kind === 'manual' ? `${r.label}: click to remove` : `${r.label}: click to ${r.on ? 'keep visible' : 'hide'}`;
       rect.append(t);
     }
+    if (r.kind === 'manual') rect.dataset.manual = '';
     rect.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (state.drawing) return;
-      r.on = !r.on;
+      // Your own boxes go away on a tap (also while drawing); detected ones toggle on/off.
+      if (r.kind === 'manual') state.regions = state.regions.filter((x) => x !== r);
+      else if (state.drawing) return;
+      else r.on = !r.on;
       drawRegions();
       updateNote();
     });
@@ -259,7 +262,7 @@ $('draw').addEventListener('click', () => {
   state.drawing = !state.drawing;
   $('draw').setAttribute('aria-pressed', String(state.drawing));
   ($('overlay') as unknown as SVGSVGElement).classList.toggle('drawing', state.drawing);
-  if (state.drawing) $('face-hint').textContent = 'Drag on the picture to cover anything you want hidden. Click "Draw a box" again when done.';
+  if (state.drawing) $('face-hint').textContent = 'Drag on the picture to cover anything you want hidden; tap one of your boxes to remove it. Click "Draw a box" again when done.';
 });
 
 {
@@ -271,7 +274,7 @@ $('draw').addEventListener('click', () => {
     return { x: ((e.clientX - b.left) / b.width) * state.w, y: ((e.clientY - b.top) / b.height) * state.h };
   };
   svg.addEventListener('pointerdown', (e) => {
-    if (!state.drawing) return;
+    if (!state.drawing || (e.target as Element).hasAttribute('data-manual')) return;
     svg.setPointerCapture(e.pointerId);
     start = toImage(e);
     ghost = s('rect', { x: start.x, y: start.y, width: 0, height: 0, class: 'box manual' });

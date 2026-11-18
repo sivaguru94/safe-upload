@@ -300,3 +300,28 @@ test('guides and FAQ: every sitemap page loads, is canonical, has valid structur
   expect(w.foreign()).toEqual([]);
   expect(w.problems).toEqual([]);
 });
+
+test('your own boxes are removed with a tap, also while still drawing @mobile', async ({ page }) => {
+  await page.goto('/');
+  await page.click('#sample');
+  await expect(page.locator('#verdict')).toContainText('League City');
+  const mine = page.locator('#overlay rect.box.manual');
+
+  // Still in draw mode (as on a phone): tapping the box removes it instead of starting a new one.
+  await page.click('#draw');
+  const b = (await page.locator('#overlay').boundingBox())!;
+  await page.mouse.move(b.x + b.width * 0.2, b.y + b.height * 0.2);
+  await page.mouse.down();
+  await page.mouse.move(b.x + b.width * 0.5, b.y + b.height * 0.5, { steps: 5 });
+  await page.mouse.up();
+  await expect(mine).toHaveCount(1);
+  await mine.click();
+  await expect(mine).toHaveCount(0);
+  await page.click('#draw');
+
+  // Out of draw mode it is removed too.
+  await drawBox(page, 0.3, 0.3, 0.6, 0.6);
+  await expect(mine).toHaveCount(1);
+  await mine.click();
+  await expect(mine).toHaveCount(0);
+});
