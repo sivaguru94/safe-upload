@@ -11,8 +11,11 @@ Ordered. One item in progress at a time.
    2026-11-12 on a real iPhone (Safari and Chrome): picking from Photos hands the page a JPEG converted by
    iOS (IMG_1234.jpeg) whatever `accept` says, and it KEEPS the GPS block; picking via Browse (Files, saved with
    "All Photos Data") gives the original HEIC, also with GPS. reveal showed location/model/date for the HEIC and
-   the clean copy re-checked as no GPS. The page now notes the iOS conversion. Large-photo face hiding on the
-   phone is still untested.
+   the clean copy re-checked as no GPS. The page now notes the iOS conversion. 2026-11-18 real iPhone 17 Pro, Safari: face hiding on a
+   12 MP and a 24.5 MP (5712x4284, over the canvas limit) photo both finished quickly, full resolution kept,
+   upright, no metadata. Found + fixed: drawn boxes could not be removed (tap ignored in draw mode, `off` style
+   hidden by `.manual`). Open: plates stay readable (text finder); box covers the face but not ear/hair in profile
+   (consider more padding); kept `settings` include SubjectArea = where the face is.
 2. **Real-file corpus.** Run real files from the owner's devices through inspect/strip and the site:
    Pixel 7a motion photo (`.MP.jpg`), iPhone HEIC (thumbnail, depth, gain map), iPhone JPEG with gain map,
    WhatsApp-forwarded image, Android and macOS screenshots, Lightroom export. Turn each surprise into a
